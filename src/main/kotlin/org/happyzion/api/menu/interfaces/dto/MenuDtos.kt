@@ -3,6 +3,7 @@ package org.happyzion.api.menu.interfaces.dto
 import org.happyzion.api.board.domain.BoardType
 import org.happyzion.api.menu.application.AdminMenuSnapshot
 import org.happyzion.api.menu.application.AdminYouTubePlaylistSummary
+import org.happyzion.api.menu.application.StaticPageRoute
 import org.happyzion.api.menu.application.MenuTreeNode
 import org.happyzion.api.menu.application.MenuTreeNodeInput
 import org.happyzion.api.menu.application.PublicNavigationResponse
@@ -62,6 +63,16 @@ data class AdminMenuTreeNodeDto(
 
 data class AdminMenuTreeResponse(
     val items: List<AdminMenuTreeNodeDto>,
+)
+
+data class AdminStaticPageDto(
+    val key: String,
+    val label: String,
+    val path: String,
+)
+
+data class AdminStaticPagesResponse(
+    val pages: List<AdminStaticPageDto>,
 )
 
 data class AdminYouTubePlaylistDto(
@@ -146,6 +157,13 @@ private fun MenuTreeNodeRequest.toCommand(): MenuTreeNodeInput =
 
 fun AdminMenuSnapshot.toDto(): AdminMenuTreeResponse =
     AdminMenuTreeResponse(items = items.map { it.toDto() })
+
+fun StaticPageRoute.toDto(): AdminStaticPageDto =
+    AdminStaticPageDto(
+        key = key,
+        label = label,
+        path = path,
+    )
 
 fun MenuTreeNode.toDto(): AdminMenuTreeNodeDto =
     AdminMenuTreeNodeDto(

@@ -243,7 +243,7 @@ class MenuManagementService(
                     if (staticPageKey.isNullOrBlank()) {
                         throw IllegalArgumentException("정적 페이지 메뉴는 staticPageKey가 필요합니다.")
                     }
-                    if (staticPageKey !in MenuRouteRegistry.allStaticPageKeys()) {
+                    if (staticPageKey !in StaticPageCatalog.allKeys()) {
                         throw IllegalArgumentException("지원하지 않는 staticPageKey 입니다: $staticPageKey")
                     }
                     item.staticPageKey = staticPageKey
