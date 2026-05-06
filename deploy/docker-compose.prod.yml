@@ -1,0 +1,60 @@
+name: happyzion
+
+services:
+  db:
+    image: postgres:16
+    container_name: happyzion-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-Asia/Seoul}
+      PGTZ: ${TZ:-Asia/Seoul}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - backend
+
+  app:
+    image: ${APP_IMAGE}
+    container_name: happyzion-api
+    restart: unless-stopped
+    pull_policy: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      YOUTUBE_CHANNEL_ID: ${YOUTUBE_CHANNEL_ID}
+      ADMIN_SYNC_KEY: ${ADMIN_SYNC_KEY}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      HAPPYZION_UPLOAD_ROOT: ${HAPPYZION_UPLOAD_ROOT}
+      HAPPYZION_UPLOAD_PUBLIC_BASE_URL: ${HAPPYZION_UPLOAD_PUBLIC_BASE_URL}
+      TZ: ${TZ:-Asia/Seoul}
+    user: "1000:1000"
+    volumes:
+      - /opt/happyzion/uploads:/opt/happyzion/uploads
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - backend
+
+volumes:
+  postgres-data:
+
+networks:
+  backend:
+    driver: bridge

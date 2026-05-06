@@ -1,0 +1,9 @@
+.gradle
+.gradle-home
+build
+bin
+out
+.idea
+*.iml
+.env
+.local

@@ -1,0 +1,10 @@
+.git
+.gradle
+.gradle-home
+.kotlin
+build
+.env
+.env.*
+README-BACK.md
+Dockerfile
+docker-compose.local.yml
