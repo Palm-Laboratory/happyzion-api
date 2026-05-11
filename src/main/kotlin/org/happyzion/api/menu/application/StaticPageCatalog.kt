@@ -8,8 +8,9 @@ data class StaticPageRoute(
 
 object StaticPageCatalog {
     private val staticRoutes = listOf(
-        StaticPageRoute("about.greeting", "교회 소개 / 인사말", "/about/greeting"),
-        StaticPageRoute("about.history", "교회 소개 / 교회연혁", "/about/history"),
+        StaticPageRoute("about.greeting", "교회 소개 / 인사말/비전", "/about/greeting"),
+        StaticPageRoute("about.church-story", "교회 소개 / 교회 이야기", "/about/church-story"),
+        StaticPageRoute("about.mission-history", "교회 소개 / 선교 이력", "/about/mission-history"),
         StaticPageRoute("about.location", "교회 소개 / 오시는 길", "/about/location"),
         StaticPageRoute("about.online-giving", "교회 소개 / 온라인 헌금", "/about/online-giving"),
         StaticPageRoute("about.service-times", "교회 소개 / 예배시간", "/about/service-times"),
