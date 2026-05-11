@@ -15,6 +15,9 @@ object StaticPageCatalog {
         StaticPageRoute("about.location", "교회 소개 / 오시는 길", "/about/location"),
         StaticPageRoute("about.online-giving", "교회 소개 / 온라인 헌금", "/about/online-giving"),
         StaticPageRoute("about.service-times", "교회 소개 / 예배시간", "/about/service-times"),
+        StaticPageRoute("discipleship.guide", "양육 / 가이드", "/discipleship/guide"),
+        StaticPageRoute("discipleship.care", "양육 / 새가족 양육", "/discipleship/care"),
+        StaticPageRoute("discipleship.training", "양육 / 제자 훈련", "/discipleship/training"),
     )
     private val staticRoutesByKey = staticRoutes.associateBy { it.key }
 
