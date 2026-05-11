@@ -15,6 +15,7 @@ import java.util.UUID
 private const val MAIN_VIDEO_KEY = "main_video_url"
 private const val DEFAULT_MAIN_VIDEO_URL = "/video/sample.mp4"
 private const val MAX_MAIN_VIDEO_BYTE_SIZE = 200L * 1024L * 1024L
+private const val MAIN_VIDEO_SIGNATURE_BYTE_SIZE = 12
 
 @Service
 class SiteSettingService(
@@ -26,18 +27,6 @@ class SiteSettingService(
         MainVideoSetting(videoUrl = currentMainVideoUrl())
 
     @Transactional
-    fun updateMainVideoSetting(command: UpdateMainVideoSettingCommand): MainVideoSetting {
-        val videoUrl = normalizeVideoUrl(command.videoUrl)
-        val setting = siteSettingRepository.findByIdOrNull(MAIN_VIDEO_KEY)
-            ?: SiteSetting(key = MAIN_VIDEO_KEY)
-
-        setting.value = videoUrl
-        siteSettingRepository.save(setting)
-
-        return MainVideoSetting(videoUrl = videoUrl)
-    }
-
-    @Transactional
     fun uploadMainVideo(file: MultipartFile): MainVideoSetting {
         val mimeType = file.contentType?.trim()?.lowercase()
             ?: throw IllegalArgumentException("영상 파일 MIME 타입이 없습니다.")
@@ -47,30 +36,29 @@ class SiteSettingService(
         val originalFilename = file.originalFilename?.trim().orEmpty()
         require(originalFilename.isNotBlank()) { "영상 파일명이 없습니다." }
 
-        val bytes = file.bytes
-        require(matchesVideoSignature(bytes, mimeType)) { "지원하지 않는 영상 파일 형식입니다." }
-
         val storedPath = buildMainVideoStoredPath(extension)
         val target = Path.of(uploadProperties.rootPath).resolve(storedPath).normalize()
         val rootPath = Path.of(uploadProperties.rootPath).toAbsolutePath().normalize()
         require(target.toAbsolutePath().startsWith(rootPath)) { "영상 저장 경로가 올바르지 않습니다." }
 
-        Files.createDirectories(target.parent)
-        try {
-            Files.write(target, bytes)
-            val videoUrl = publicUploadUrl(storedPath)
+        writeMainVideoWithSignatureValidation(file, mimeType, target)
+
+        val videoUrl = publicUploadUrl(storedPath)
+        val previousVideoUrl = try {
             val previousVideoUrl = currentMainVideoUrl()
             val setting = siteSettingRepository.findByIdOrNull(MAIN_VIDEO_KEY)
                 ?: SiteSetting(key = MAIN_VIDEO_KEY)
             setting.value = videoUrl
             siteSettingRepository.save(setting)
-            deletePreviousUploadedMainVideo(previousVideoUrl)
-
-            return MainVideoSetting(videoUrl = videoUrl)
-        } catch (ex: RuntimeException) {
+            previousVideoUrl
+        } catch (ex: Exception) {
             Files.deleteIfExists(target)
             throw ex
         }
+
+        deletePreviousUploadedMainVideoBestEffort(previousVideoUrl)
+
+        return MainVideoSetting(videoUrl = videoUrl)
     }
 
     private fun currentMainVideoUrl(): String =
@@ -79,18 +67,6 @@ class SiteSettingService(
             ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?: DEFAULT_MAIN_VIDEO_URL
-
-    private fun normalizeVideoUrl(videoUrl: String): String {
-        val normalized = videoUrl.trim()
-        require(normalized.isNotBlank()) { "메인 영상 URL을 입력해 주세요." }
-        require(normalized.length <= 2000) { "메인 영상 URL은 2000자 이내로 입력해 주세요." }
-        require(normalized.startsWith("/") || normalized.startsWith("https://") || normalized.startsWith("http://")) {
-            "메인 영상 URL은 /로 시작하는 경로 또는 http(s) URL이어야 합니다."
-        }
-        require(!normalized.startsWith("//")) { "메인 영상 URL 형식이 올바르지 않습니다." }
-
-        return normalized
-    }
 
     private fun buildMainVideoStoredPath(extension: String): String {
         val now = LocalDate.now()
@@ -113,6 +89,28 @@ class SiteSettingService(
             else -> throw IllegalArgumentException("MP4, WebM, MOV 영상만 업로드할 수 있습니다.")
         }
 
+    private fun writeMainVideoWithSignatureValidation(
+        file: MultipartFile,
+        mimeType: String,
+        target: Path,
+    ) {
+        file.inputStream.use { input ->
+            val signature = input.readNBytes(MAIN_VIDEO_SIGNATURE_BYTE_SIZE)
+            require(matchesVideoSignature(signature, mimeType)) { "지원하지 않는 영상 파일 형식입니다." }
+
+            Files.createDirectories(target.parent)
+            try {
+                Files.newOutputStream(target).use { output ->
+                    output.write(signature)
+                    input.copyTo(output)
+                }
+            } catch (ex: Exception) {
+                Files.deleteIfExists(target)
+                throw ex
+            }
+        }
+    }
+
     private fun matchesVideoSignature(bytes: ByteArray, mimeType: String): Boolean =
         when (mimeType) {
             "video/mp4", "video/quicktime" -> hasIsoBaseMediaSignature(bytes)
@@ -133,6 +131,14 @@ class SiteSettingService(
             bytes[1] == 0x45.toByte() &&
             bytes[2] == 0xDF.toByte() &&
             bytes[3] == 0xA3.toByte()
+
+    private fun deletePreviousUploadedMainVideoBestEffort(videoUrl: String) {
+        try {
+            deletePreviousUploadedMainVideo(videoUrl)
+        } catch (_: Exception) {
+            // Previous upload cleanup must not invalidate the newly saved setting.
+        }
+    }
 
     private fun deletePreviousUploadedMainVideo(videoUrl: String) {
         val baseUrl = uploadProperties.publicBaseUrl.trimEnd('/')

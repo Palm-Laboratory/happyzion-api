@@ -1,18 +1,15 @@
 package org.happyzion.api.site.interfaces.api
 
+import org.happyzion.api.board.application.UploadTokenService
+import org.happyzion.api.board.domain.PostAssetKind
 import org.happyzion.api.common.config.AdminProperties
 import org.happyzion.api.common.error.ForbiddenException
 import org.happyzion.api.site.application.SiteSettingService
-import org.happyzion.api.site.interfaces.dto.UpdateMainVideoSettingRequest
-import org.happyzion.api.site.interfaces.dto.toCommand
 import org.happyzion.api.site.interfaces.dto.toDto
-import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
-import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
@@ -20,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile
 @RestController
 class SiteSettingController(
     private val siteSettingService: SiteSettingService,
+    private val uploadTokenService: UploadTokenService,
     private val adminProperties: AdminProperties,
 ) {
     @GetMapping("/api/v1/public/site/main-video")
@@ -34,21 +32,19 @@ class SiteSettingController(
         siteSettingService.getMainVideoSetting().toDto()
     }
 
-    @PutMapping("/api/v1/admin/site/main-video")
-    fun updateAdminMainVideo(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
-        @RequestBody request: UpdateMainVideoSettingRequest,
-    ) = run {
-        validateAdminKey(adminKey)
-        siteSettingService.updateMainVideoSetting(request.toCommand()).toDto()
-    }
-
     @PostMapping("/api/v1/admin/site/main-video", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
     fun uploadAdminMainVideo(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
+        @RequestHeader(name = "X-Upload-Token") rawToken: String,
         @RequestParam("file") file: MultipartFile,
     ) = run {
-        validateAdminKey(adminKey)
+        val mimeType = file.contentType?.trim()?.lowercase()
+            ?: throw IllegalArgumentException("영상 파일 MIME 타입이 없습니다.")
+        uploadTokenService.validateAndConsume(
+            rawToken = rawToken,
+            kind = PostAssetKind.MAIN_VIDEO,
+            byteSize = file.size,
+            mimeType = mimeType,
+        )
         siteSettingService.uploadMainVideo(file).toDto()
     }
 

@@ -25,5 +25,12 @@ class WebConfig(
             .allowedHeaders("Content-Type", "X-Upload-Token")
             .allowCredentials(false)
             .maxAge(600)
+
+        registry.addMapping("/api/v1/admin/site/main-video")
+            .allowedOrigins(*allowedOrigins.toTypedArray())
+            .allowedMethods("POST", "OPTIONS")
+            .allowedHeaders("Content-Type", "X-Upload-Token")
+            .allowCredentials(false)
+            .maxAge(600)
     }
 }

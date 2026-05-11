@@ -21,6 +21,7 @@ class BoardSchemaContractTest {
         assertThat(migrations).containsExactly(
             "V1__create_happyzion_schema.sql",
             "V2__create_site_setting.sql",
+            "V3__allow_main_video_upload_token.sql",
         )
     }
 
