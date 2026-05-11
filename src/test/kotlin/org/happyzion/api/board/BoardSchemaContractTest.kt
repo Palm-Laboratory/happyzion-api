@@ -8,7 +8,7 @@ import java.nio.file.Path
 class BoardSchemaContractTest {
 
     @Test
-    fun `database migrations should include a single consolidated baseline`() {
+    fun `database migrations should include the current schema migrations`() {
         val migrationDir = Path.of("src/main/resources/db/migration")
         val migrations = Files.list(migrationDir).use { stream ->
             stream
@@ -20,6 +20,7 @@ class BoardSchemaContractTest {
 
         assertThat(migrations).containsExactly(
             "V1__create_happyzion_schema.sql",
+            "V2__create_site_setting.sql",
         )
     }
 
