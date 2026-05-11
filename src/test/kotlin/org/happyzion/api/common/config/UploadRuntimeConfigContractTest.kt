@@ -17,8 +17,8 @@ class UploadRuntimeConfigContractTest {
         assertThat(content).contains("servlet:")
         assertThat(content).contains("multipart:")
         assertThat(content).contains("enabled: true")
-        assertThat(content).contains("max-file-size: 10MB")
-        assertThat(content).contains("max-request-size: 12MB")
+        assertThat(content).contains("max-file-size: \${HAPPYZION_MULTIPART_MAX_FILE_SIZE:200MB}")
+        assertThat(content).contains("max-request-size: \${HAPPYZION_MULTIPART_MAX_REQUEST_SIZE:220MB}")
         assertThat(content).contains("file-size-threshold: 2MB")
         assertThat(content).contains("happyzion.uploads.root-path: \${HAPPYZION_UPLOAD_ROOT:/opt/happyzion/uploads}")
         assertThat(content).contains(

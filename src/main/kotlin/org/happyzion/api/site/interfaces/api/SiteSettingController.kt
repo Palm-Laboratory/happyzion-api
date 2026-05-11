@@ -7,11 +7,15 @@ import org.happyzion.api.site.interfaces.dto.UpdateMainVideoSettingRequest
 import org.happyzion.api.site.interfaces.dto.toCommand
 import org.happyzion.api.site.interfaces.dto.toDto
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.http.MediaType
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.multipart.MultipartFile
 
 @RestController
 class SiteSettingController(
@@ -37,6 +41,15 @@ class SiteSettingController(
     ) = run {
         validateAdminKey(adminKey)
         siteSettingService.updateMainVideoSetting(request.toCommand()).toDto()
+    }
+
+    @PostMapping("/api/v1/admin/site/main-video", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadAdminMainVideo(
+        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
+        @RequestParam("file") file: MultipartFile,
+    ) = run {
+        validateAdminKey(adminKey)
+        siteSettingService.uploadMainVideo(file).toDto()
     }
 
     private fun validateAdminKey(adminKey: String?) {
