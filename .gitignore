@@ -7,3 +7,5 @@ out
 *.iml
 .env
 .local
+.DS_Store
+.DB_Stroe

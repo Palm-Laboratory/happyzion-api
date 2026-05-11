@@ -8,7 +8,7 @@ import java.nio.file.Path
 class BoardSchemaContractTest {
 
     @Test
-    fun `database migrations should include baseline and forward board type cleanup`() {
+    fun `database migrations should include a single consolidated baseline`() {
         val migrationDir = Path.of("src/main/resources/db/migration")
         val migrations = Files.list(migrationDir).use { stream ->
             stream
@@ -20,40 +20,21 @@ class BoardSchemaContractTest {
 
         assertThat(migrations).containsExactly(
             "V1__create_happyzion_schema.sql",
-            "V2__drop_board_type_table.sql",
-            "V3__normalize_post_title_column.sql",
-            "V4__drop_upload_token_board_id.sql",
-            "V5__add_post_view_count.sql",
-            "V6__create_member_registry_tables.sql",
         )
     }
 
     @Test
-    fun `V1 migration should retain the original board type baseline`() {
+    fun `V1 migration should not create retired board type tables`() {
         val normalized = readMigration("V1__create_happyzion_schema.sql")
 
-        assertThat(normalized).contains("create table board_type")
-        assertThat(normalized).contains("board_type_id bigint not null references board_type(id)")
-        assertThat(normalized).contains("('notice', '공지사항', '공지와 안내 게시판', 0)")
+        assertThat(normalized).doesNotContain("create table board_type")
+        assertThat(normalized).doesNotContain("board_type_id")
+        assertThat(normalized).doesNotContain("idx_upload_token_board_id")
     }
 
     @Test
-    fun `forward migrations should define the current board upload schema`() {
+    fun `V1 migration should define the current board upload schema`() {
         val normalized = readBaselineMigration()
-        val cleanupMigration = readMigration("V2__drop_board_type_table.sql")
-        val titleNormalizationMigration = readMigration("V3__normalize_post_title_column.sql")
-        val uploadTokenCleanupMigration = readMigration("V4__drop_upload_token_board_id.sql")
-        val postViewCountMigration = readMigration("V5__add_post_view_count.sql")
-
-        assertThat(cleanupMigration).contains("update board as b")
-        assertThat(cleanupMigration).contains("drop column if exists board_type_id")
-        assertThat(cleanupMigration).contains("drop table if exists board_type")
-        assertThat(titleNormalizationMigration).contains("table_schema = 'public'")
-        assertThat(titleNormalizationMigration).contains("alter table post")
-        assertThat(titleNormalizationMigration).contains("alter column title type varchar(200)")
-        assertThat(uploadTokenCleanupMigration).contains("drop index if exists idx_upload_token_board_id")
-        assertThat(uploadTokenCleanupMigration).contains("drop column if exists board_id")
-        assertThat(postViewCountMigration).contains("add column if not exists view_count bigint not null default 0")
 
         assertThat(normalized).contains("create table board")
         assertThat(normalized).contains("menu_id bigint references menu_item(id) on delete set null")
@@ -84,7 +65,7 @@ class BoardSchemaContractTest {
         assertThat(normalized).contains("idx_post_asset_detached_at")
 
         assertThat(normalized).contains("create table upload_token")
-        assertThat(normalized).contains("board_id bigint references board(id) on delete cascade")
+        assertThat(normalized).doesNotContain("board_id bigint references board(id) on delete cascade")
         assertThat(normalized).contains("token_hash varchar(128) not null unique")
         assertThat(normalized).contains("allowed_mime_types jsonb not null default '[]'::jsonb")
         assertThat(normalized).contains("constraint chk_upload_token_asset_kind")
@@ -120,12 +101,47 @@ class BoardSchemaContractTest {
     fun `V1 migration should seed only current static menu entries`() {
         val normalized = readBaselineMigration()
 
-        assertThat(normalized).contains("'교회 소개', 'about'")
-        assertThat(normalized).contains("'예배 영상', 'videos'")
-        assertThat(normalized).contains("'선교', 'mission'")
-        assertThat(normalized).contains("'교회 행사', 'events'")
+        assertThat(normalized).contains("'교회 소개', false, false, 'about'")
+        assertThat(normalized).contains("'선교 사역', false, false, 'mission'")
+        assertThat(normalized).contains("'행복이 가득한', false, false, 'happy'")
+        assertThat(normalized).contains("'인사말/비전', false, false, 'greeting', 'about.greeting'")
+        assertThat(normalized).contains("'교회 이야기', false, false, 'church-story', 'about.church-story'")
+        assertThat(normalized).contains("'부흥 조직도', false, false, 'revival-organization', 'about.revival-organization'")
+        assertThat(normalized).contains("'선교 이력', false, false, 'mission-history', 'about.mission-history'")
+        assertThat(normalized).contains("select setval('menu_item_id_seq', 13, true)")
+        assertThat(normalized).contains("'happy-2026', 13, '2026년', 'general'")
+        assertThat(normalized).contains("'mission-philippines', 10, '필리핀 선교', 'general'")
+        assertThat(normalized).contains("'mission-indonesia', 11, '인도네시아 선교', 'general'")
+        assertThat(normalized).doesNotContain("'예배 영상', 'videos'")
+        assertThat(normalized).doesNotContain("'교회 행사', 'events'")
         assertThat(normalized).doesNotContain("'제자 양육', 'newcomer'")
         assertThat(normalized).doesNotContain("legacy-board-posts")
+    }
+
+    @Test
+    fun `V1 migration should seed one super admin account`() {
+        val normalized = readBaselineMigration()
+
+        assertThat(normalized).contains("insert into admin_account")
+        assertThat(normalized).contains("'happyzion.admin'")
+        assertThat(normalized).contains("'happy zion 관리자'")
+        assertThat(normalized).contains("'super_admin'")
+        assertThat(normalized).contains("select setval('admin_account_id_seq', 1, true)")
+    }
+
+    @Test
+    fun `V1 migration should include member registry tables`() {
+        val normalized = readBaselineMigration()
+
+        assertThat(normalized).contains("create table member")
+        assertThat(normalized).contains("create table member_faith")
+        assertThat(normalized).contains("create table member_family")
+        assertThat(normalized).contains("create table member_service")
+        assertThat(normalized).contains("create table member_training")
+        assertThat(normalized).contains("create table member_tag")
+        assertThat(normalized).contains("create table attendance_service_date")
+        assertThat(normalized).contains("create table attendance_record")
+        assertThat(normalized).contains("create table member_event_log")
     }
 
     @Test
@@ -175,13 +191,7 @@ class BoardSchemaContractTest {
     }
 
     private fun readBaselineMigration(): String =
-        listOf(
-            "V1__create_happyzion_schema.sql",
-            "V2__drop_board_type_table.sql",
-            "V3__normalize_post_title_column.sql",
-            "V4__drop_upload_token_board_id.sql",
-            "V5__add_post_view_count.sql",
-        ).joinToString("\n") { readMigration(it) }
+        readMigration("V1__create_happyzion_schema.sql")
 
     private fun readMigration(fileName: String): String {
         val migration = Path.of("src/main/resources/db/migration/$fileName")

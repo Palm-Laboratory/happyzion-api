@@ -28,6 +28,18 @@ before update on admin_account
 for each row
 execute function set_current_timestamp_updated_at();
 
+insert into admin_account (id, username, display_name, password_hash, role, active)
+values (
+    1,
+    'happyzion.admin',
+    'Happy Zion 관리자',
+    '$2y$10$lcIDIsuVnFhZIGC1s2pvWeM1D5E9wM8IbrqSP0qhP2nUbBzLXf9TW',
+    'SUPER_ADMIN',
+    true
+);
+
+select setval('admin_account_id_seq', 1, true);
+
 create table youtube_channel (
     id bigserial primary key,
     channel_id varchar(64) not null unique,
@@ -212,26 +224,10 @@ create table menu_revision (
 
 create index idx_menu_revision_created_at on menu_revision(created_at desc);
 
-create table board_type (
-    id bigserial primary key,
-    key varchar(32) not null unique,
-    label varchar(100) not null,
-    description text,
-    sort_order integer not null default 0
-);
-
-insert into board_type (key, label, description, sort_order)
-values
-    ('NOTICE', '공지사항', '공지와 안내 게시판', 0),
-    ('BULLETIN', '주보', '주보 게시판', 1),
-    ('ALBUM', '행사 앨범', '사진 중심 행사 앨범 게시판', 2),
-    ('GENERAL', '자유게시판', '일반 게시판', 3);
-
 create table board (
     id bigserial primary key,
     slug varchar(100) not null unique,
     menu_id bigint references menu_item(id) on delete set null,
-    board_type_id bigint not null references board_type(id),
     title varchar(200) not null,
     type varchar(32) not null,
     description text,
@@ -262,7 +258,8 @@ create table post (
     is_public boolean not null default true,
     is_pinned boolean not null default false,
     created_at timestamptz not null default now(),
-    updated_at timestamptz not null default now()
+    updated_at timestamptz not null default now(),
+    view_count bigint not null default 0
 );
 
 create index idx_post_board_id on post(board_id);
@@ -272,6 +269,8 @@ create index idx_post_menu_id_created_at on post(menu_id, created_at desc, id de
 create index idx_post_menu_id_public_created_at on post(menu_id, is_public, created_at desc, id desc);
 create index idx_post_board_public_pinned_created_at on post(board_id, is_public, is_pinned desc, created_at desc, id desc);
 create index idx_post_menu_public_pinned_created_at on post(menu_id, is_public, is_pinned desc, created_at desc, id desc);
+create index idx_post_menu_public_pinned_created_at_view_count
+    on post(menu_id, is_public, is_pinned desc, created_at desc, id desc, view_count desc);
 
 create trigger trg_post_updated_at
 before update on post
@@ -311,7 +310,6 @@ execute function set_current_timestamp_updated_at();
 
 create table upload_token (
     id bigserial primary key,
-    board_id bigint references board(id) on delete cascade,
     actor_id bigint not null references admin_account(id),
     max_byte_size bigint not null,
     token_hash varchar(128) not null unique,
@@ -325,7 +323,6 @@ create table upload_token (
         check (asset_kind in ('INLINE_IMAGE', 'FILE_ATTACHMENT'))
 );
 
-create index idx_upload_token_board_id on upload_token(board_id);
 create index idx_upload_token_expires_at on upload_token(expires_at);
 
 create trigger trg_upload_token_updated_at
@@ -333,27 +330,256 @@ before update on upload_token
 for each row
 execute function set_current_timestamp_updated_at();
 
-with root_about as (
-    insert into menu_item (parent_id, type, status, label, slug, static_page_key, board_key, external_url, open_in_new_tab, depth, path, sort_order, is_auto)
-    values (null, 'STATIC', 'PUBLISHED', '교회 소개', 'about', 'about', null, null, false, 0, '', 0, false)
-    returning id
-),
-root_videos as (
-    insert into menu_item (parent_id, type, status, label, slug, static_page_key, board_key, external_url, open_in_new_tab, depth, path, sort_order, is_auto)
-    values (null, 'YOUTUBE_PLAYLIST_GROUP', 'PUBLISHED', '예배 영상', 'videos', null, null, null, false, 0, '', 1, false)
-    returning id
-),
-root_mission as (
-    insert into menu_item (parent_id, type, status, label, slug, static_page_key, board_key, external_url, open_in_new_tab, depth, path, sort_order, is_auto)
-    values (null, 'STATIC', 'PUBLISHED', '선교', 'mission', 'mission', null, null, false, 0, '', 2, false)
-    returning id
-),
-root_events as (
-    insert into menu_item (parent_id, type, status, label, slug, static_page_key, board_key, external_url, open_in_new_tab, depth, path, sort_order, is_auto)
-    values (null, 'STATIC', 'PUBLISHED', '교회 행사', 'events', 'events', null, null, false, 0, '', 3, false)
-    returning id
+create table member (
+    id bigserial primary key,
+    name varchar(100) not null,
+    name_en varchar(100),
+    baptism_name varchar(100),
+    sex varchar(1) not null,
+    birth_date date not null,
+    birth_calendar varchar(10) not null,
+    phone varchar(30) not null,
+    emergency_phone varchar(30),
+    emergency_relation varchar(50),
+    email varchar(150),
+    address varchar(200) not null,
+    address_detail varchar(200),
+    job varchar(120),
+    photo_path varchar(255),
+    cell_id varchar(60),
+    cell_label varchar(120),
+    status varchar(32) not null,
+    faith_stage varchar(32) not null,
+    office varchar(32) not null default 'LAY',
+    office_appointed_at date,
+    registered_at date not null,
+    memo text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint chk_member_sex
+        check (sex in ('M', 'F')),
+    constraint chk_member_birth_calendar
+        check (birth_calendar in ('SOLAR', 'LUNAR')),
+    constraint chk_member_status
+        check (status in ('ACTIVE', 'NEW', 'RESTING', 'LONG_ABSENT', 'TRANSFERRED_OUT', 'DECEASED', 'REMOVED')),
+    constraint chk_member_faith_stage
+        check (faith_stage in ('SEEKER', 'NEW_COMER', 'SETTLED', 'GROWING', 'DISCIPLE', 'MINISTER', 'LEADER')),
+    constraint chk_member_office
+        check (office in ('LAY', 'DEACON_TEMP', 'DEACON', 'GWONSA', 'ELDER', 'ELDER_EMERITUS', 'EVANGELIST', 'PASTOR'))
+);
+
+create index idx_member_registered_at on member(registered_at desc, id desc);
+create index idx_member_status on member(status);
+create index idx_member_faith_stage on member(faith_stage);
+create index idx_member_cell_id on member(cell_id);
+create index idx_member_name on member(name);
+create index idx_member_phone on member(phone);
+
+create trigger trg_member_updated_at
+before update on member
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_faith (
+    member_id bigint primary key references member(id) on delete cascade,
+    confess_date date,
+    learning_date date,
+    baptism_date date,
+    baptism_place varchar(120),
+    baptism_officiant varchar(120),
+    confirmation_date date,
+    previous_church varchar(120),
+    transferred_in_at date,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create trigger trg_member_faith_updated_at
+before update on member_faith
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_family (
+    id bigserial primary key,
+    member_id bigint not null references member(id) on delete cascade,
+    related_member_id bigint references member(id) on delete set null,
+    external_name varchar(100),
+    relation varchar(20) not null,
+    relation_detail varchar(50),
+    is_head boolean not null default false,
+    sex varchar(1),
+    phone varchar(30),
+    birth_date date,
+    group_note varchar(200),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint chk_member_family_relation
+        check (relation in ('SPOUSE', 'PARENT', 'CHILD', 'SIBLING', 'OTHER')),
+    constraint chk_member_family_sex
+        check (sex is null or sex in ('M', 'F'))
+);
+
+create index idx_member_family_member_id on member_family(member_id, is_head desc, id asc);
+
+create trigger trg_member_family_updated_at
+before update on member_family
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_service (
+    id bigserial primary key,
+    member_id bigint not null references member(id) on delete cascade,
+    department varchar(120) not null,
+    team varchar(120),
+    role varchar(120) not null,
+    started_at date not null,
+    ended_at date,
+    schedule varchar(200),
+    note varchar(500),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index idx_member_service_member_id on member_service(member_id, ended_at asc, started_at desc, id desc);
+
+create trigger trg_member_service_updated_at
+before update on member_service
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_training (
+    id bigserial primary key,
+    member_id bigint not null references member(id) on delete cascade,
+    program_name varchar(120) not null,
+    completed_at date not null,
+    note varchar(500),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index idx_member_training_member_id on member_training(member_id, completed_at desc, id desc);
+
+create trigger trg_member_training_updated_at
+before update on member_training
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_tag (
+    id bigserial primary key,
+    member_id bigint not null references member(id) on delete cascade,
+    tag varchar(80) not null,
+    created_at timestamptz not null default now()
+);
+
+create index idx_member_tag_member_id on member_tag(member_id, tag);
+
+create table attendance_service_date (
+    id bigserial primary key,
+    service_date date not null,
+    service_type varchar(50) not null,
+    note varchar(200),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint uk_attendance_service_date unique (service_date, service_type)
+);
+
+create index idx_attendance_service_date_date on attendance_service_date(service_date desc, id desc);
+
+create trigger trg_attendance_service_date_updated_at
+before update on attendance_service_date
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table attendance_record (
+    id bigserial primary key,
+    service_date_id bigint not null references attendance_service_date(id) on delete cascade,
+    member_id bigint not null references member(id) on delete cascade,
+    status varchar(20) not null,
+    reason varchar(200),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    constraint uk_attendance_record unique (service_date_id, member_id),
+    constraint chk_attendance_record_status
+        check (status in ('ATTEND', 'ABSENT', 'EXCUSED', 'ONLINE'))
+);
+
+create index idx_attendance_record_member_id on attendance_record(member_id, service_date_id);
+
+create trigger trg_attendance_record_updated_at
+before update on attendance_record
+for each row
+execute function set_current_timestamp_updated_at();
+
+create table member_event_log (
+    id bigserial primary key,
+    member_id bigint not null references member(id) on delete cascade,
+    type varchar(40) not null,
+    payload jsonb,
+    actor_id bigint not null references admin_account(id),
+    created_at timestamptz not null default now(),
+    constraint chk_member_event_type
+        check (type in (
+            'REGISTERED',
+            'STATUS_CHANGED',
+            'STAGE_CHANGED',
+            'OFFICE_CHANGED',
+            'CELL_MOVED',
+            'SERVICE_ASSIGNED',
+            'SERVICE_ENDED',
+            'TRAINING_COMPLETED',
+            'ADDRESS_CHANGED',
+            'PHOTO_CHANGED',
+            'FAMILY_LINKED',
+            'FAMILY_UNLINKED'
+        ))
+);
+
+create index idx_member_event_log_member_id on member_event_log(member_id, created_at desc, id desc);
+
+insert into menu_item (
+    id,
+    parent_id,
+    type,
+    status,
+    label,
+    label_customized,
+    slug_customized,
+    slug,
+    static_page_key,
+    board_key,
+    playlist_id,
+    external_url,
+    open_in_new_tab,
+    depth,
+    path,
+    sort_order,
+    is_auto,
+    playlist_content_form
 )
-select 1;
+values
+    (1, null, 'FOLDER', 'PUBLISHED', '교회 소개', false, false, 'about', null, null, null, null, false, 0, '', 0, false, null),
+    (2, 1, 'STATIC', 'PUBLISHED', '인사말/비전', false, false, 'greeting', 'about.greeting', null, null, null, false, 1, '', 0, false, null),
+    (3, 1, 'STATIC', 'PUBLISHED', '교회 이야기', false, false, 'church-story', 'about.church-story', null, null, null, false, 1, '', 1, false, null),
+    (4, 1, 'STATIC', 'PUBLISHED', '부흥 조직도', false, false, 'revival-organization', 'about.revival-organization', null, null, null, false, 1, '', 2, false, null),
+    (5, 1, 'STATIC', 'PUBLISHED', '예배 안내', false, false, 'service-times', 'about.service-times', null, null, null, false, 1, '', 3, false, null),
+    (6, 1, 'STATIC', 'PUBLISHED', '선교 이력', false, false, 'mission-history', 'about.mission-history', null, null, null, false, 1, '', 4, false, null),
+    (7, 1, 'STATIC', 'PUBLISHED', '오시는 길', false, false, 'location', 'about.location', null, null, null, false, 1, '', 5, false, null),
+    (8, 1, 'STATIC', 'PUBLISHED', '온라인 헌금', false, false, 'online-giving', 'about.online-giving', null, null, null, false, 1, '', 6, false, null),
+    (9, null, 'FOLDER', 'PUBLISHED', '선교 사역', false, false, 'mission', null, null, null, null, false, 0, '', 1, false, null),
+    (10, 9, 'BOARD', 'PUBLISHED', '필리핀 선교', false, false, 'philippines', null, 'mission-philippines', null, null, false, 1, '', 0, false, null),
+    (11, 9, 'BOARD', 'PUBLISHED', '인도네시아 선교', false, false, 'indonesia', null, 'mission-indonesia', null, null, false, 1, '', 1, false, null),
+    (12, null, 'FOLDER', 'PUBLISHED', '행복이 가득한', false, false, 'happy', null, null, null, null, false, 0, '', 2, false, null),
+    (13, 12, 'BOARD', 'PUBLISHED', '2026년', false, false, '2026', null, 'happy-2026', null, null, false, 1, '', 0, false, null);
+
+select setval('menu_item_id_seq', 13, true);
+
+insert into board (id, slug, menu_id, title, type, description)
+values
+    (1, 'happy-2026', 13, '2026년', 'GENERAL', null),
+    (2, 'mission-philippines', 10, '필리핀 선교', 'GENERAL', null),
+    (3, 'mission-indonesia', 11, '인도네시아 선교', 'GENERAL', null);
+
+select setval('board_id_seq', 3, true);
 
 with recursive menu_paths as (
     select id, parent_id, concat('/', id, '/') as computed_path, 0 as computed_depth
