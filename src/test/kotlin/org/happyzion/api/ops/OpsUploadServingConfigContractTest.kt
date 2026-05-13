@@ -13,6 +13,8 @@ class OpsUploadServingConfigContractTest {
 
         assertThat(appService).containsPattern(uploadEnvPattern("HAPPYZION_UPLOAD_ROOT"))
         assertThat(appService).containsPattern(uploadEnvPattern("HAPPYZION_UPLOAD_PUBLIC_BASE_URL"))
+        assertThat(appService).containsPattern(uploadEnvPattern("HAPPYZION_MULTIPART_MAX_FILE_SIZE"))
+        assertThat(appService).containsPattern(uploadEnvPattern("HAPPYZION_MULTIPART_MAX_REQUEST_SIZE"))
         assertThat(appService).containsPattern("""(?m)^\s*-\s*/opt/happyzion/uploads:/opt/happyzion/uploads\s*$""")
         assertThat(appService).containsPattern("""(?m)^\s*user:\s*["']1000:1000["']\s*$""")
     }
@@ -23,6 +25,8 @@ class OpsUploadServingConfigContractTest {
 
         assertThat(content).contains("HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads")
         assertThat(content).contains("HAPPYZION_UPLOAD_PUBLIC_BASE_URL=https://api.happyzion.com/upload")
+        assertThat(content).contains("HAPPYZION_MULTIPART_MAX_FILE_SIZE=200MB")
+        assertThat(content).contains("HAPPYZION_MULTIPART_MAX_REQUEST_SIZE=220MB")
     }
 
     @Test
@@ -56,7 +60,7 @@ class OpsUploadServingConfigContractTest {
         val content = readNginxFile("api.happyzion.com.conf")
         val uploadLocation = locationBlock(content, "/upload/")
 
-        assertThat(content).containsPattern("""(?m)^\s*client_max_body_size\s+12m\s*;""")
+        assertThat(content).containsPattern("""(?m)^\s*client_max_body_size\s+220m\s*;""")
         assertThat(content).containsPattern("""(?m)^\s*include\s+(?:/etc/nginx/)?mime\.types\s*;""")
         assertThat(content).containsPattern("""(?m)^\s*default_type\s+application/octet-stream\s*;""")
         assertThat(uploadLocation).containsPattern("""(?m)^\s*alias\s+/opt/happyzion/uploads/\s*;""")
