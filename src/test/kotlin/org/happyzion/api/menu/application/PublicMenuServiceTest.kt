@@ -44,7 +44,7 @@ class PublicMenuServiceTest {
             type = MenuType.STATIC,
             label = "인사말",
             slug = "greeting",
-            staticPageKey = "about.greeting",
+            staticPageKey = "happyzion.placeholder",
         )
         whenever(menuItemRepository.findAllByStatusOrderBySortOrderAscIdAsc(MenuStatus.PUBLISHED))
             .thenReturn(listOf(about, greeting))
@@ -57,7 +57,7 @@ class PublicMenuServiceTest {
             { assertEquals("greeting", resolved.slug) },
             { assertEquals("/about/greeting", resolved.fullPath) },
             { assertEquals("교회소개", resolved.parentLabel) },
-            { assertEquals("about.greeting", resolved.staticPageKey) },
+            { assertEquals("happyzion.placeholder", resolved.staticPageKey) },
             { assertNull(resolved.redirectTo) },
         )
 
@@ -80,7 +80,7 @@ class PublicMenuServiceTest {
             type = MenuType.STATIC,
             label = "인사말",
             slug = "greeting",
-            staticPageKey = "about.greeting",
+            staticPageKey = "happyzion.placeholder",
             sortOrder = 0,
         )
         val history = menuItem(
@@ -89,7 +89,7 @@ class PublicMenuServiceTest {
             type = MenuType.STATIC,
             label = "연혁",
             slug = "history",
-            staticPageKey = "about.history",
+            staticPageKey = "happyzion.secondary",
             sortOrder = 1,
         )
         whenever(menuItemRepository.findAllByStatusOrderBySortOrderAscIdAsc(MenuStatus.PUBLISHED))

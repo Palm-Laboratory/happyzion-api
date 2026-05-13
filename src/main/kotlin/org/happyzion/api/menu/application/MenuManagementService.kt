@@ -138,6 +138,8 @@ class MenuManagementService(
     }
 
     private fun validateInputTree(nodes: List<MenuTreeNodeInput>) {
+        val staticPageKeys = linkedSetOf<String>()
+
         fun visitSiblings(siblings: List<MenuTreeNodeInput>, depth: Int, parentType: MenuType?) {
             val siblingSlugs = linkedSetOf<String>()
 
@@ -163,6 +165,13 @@ class MenuManagementService(
                     status = node.status,
                     hasChildren = node.children.isNotEmpty(),
                 )
+
+                if (node.type == MenuType.STATIC) {
+                    val staticPageKey = node.staticPageKey?.trim()
+                    if (!staticPageKey.isNullOrBlank() && !staticPageKeys.add(staticPageKey)) {
+                        throw IllegalArgumentException("하나의 정적 페이지는 하나의 메뉴에만 연결할 수 있습니다: $staticPageKey")
+                    }
+                }
 
                 visitSiblings(node.children, depth + 1, node.type)
             }
@@ -243,7 +252,7 @@ class MenuManagementService(
                     if (staticPageKey.isNullOrBlank()) {
                         throw IllegalArgumentException("정적 페이지 메뉴는 staticPageKey가 필요합니다.")
                     }
-                    if (staticPageKey !in MenuRouteRegistry.allStaticPageKeys()) {
+                    if (staticPageKey !in StaticPageCatalog.allKeys()) {
                         throw IllegalArgumentException("지원하지 않는 staticPageKey 입니다: $staticPageKey")
                     }
                     item.staticPageKey = staticPageKey

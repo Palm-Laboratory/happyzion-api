@@ -102,7 +102,7 @@ sudo chown -R www-data:www-data /var/www/certbot
 인증서 발급 전에는 HTTP-only 설정을 사용한다.
 
 ```bash
-sudo cp deploy/nginx/api.happyzion.org.pre-ssl.conf /etc/nginx/sites-available/<api-domain>
+sudo cp deploy/nginx/api.happyzion.com.pre-ssl.conf /etc/nginx/sites-available/<api-domain>
 sudo ln -sf /etc/nginx/sites-available/<api-domain> /etc/nginx/sites-enabled/<api-domain>
 sudo nginx -t
 sudo systemctl reload nginx
@@ -110,7 +110,7 @@ sudo systemctl reload nginx
 
 주의:
 
-- 현재 저장소의 nginx 템플릿 파일명은 `api.happyzion.org` 기준이다.
+- 현재 저장소의 nginx 템플릿 파일명은 `api.happyzion.com` 기준이다.
 - 실제 운영 도메인이 다르면 템플릿 내부 `server_name`과 대상 파일명을 같이 맞춰야 한다.
 - 이 단계에서는 `<api-domain>` DNS가 `<oci-host>`를 가리켜야 한다.
 
@@ -126,7 +126,7 @@ sudo certbot --nginx -d <api-domain>
 
 ```bash
 sudo cp deploy/nginx/happyzion-upload-http-context.conf /etc/nginx/conf.d/happyzion-upload-http-context.conf
-sudo cp deploy/nginx/api.happyzion.org.conf /etc/nginx/sites-available/<api-domain>
+sudo cp deploy/nginx/api.happyzion.com.conf /etc/nginx/sites-available/<api-domain>
 sudo nginx -t
 sudo systemctl reload nginx
 ```

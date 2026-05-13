@@ -3,6 +3,8 @@ package org.happyzion.api.menu.interfaces.api
 import org.happyzion.api.common.config.AdminProperties
 import org.happyzion.api.common.error.ForbiddenException
 import org.happyzion.api.menu.application.MenuManagementService
+import org.happyzion.api.menu.application.StaticPageCatalog
+import org.happyzion.api.menu.interfaces.dto.AdminStaticPagesResponse
 import org.happyzion.api.menu.interfaces.dto.ReplaceMenuTreeRequest
 import org.happyzion.api.menu.interfaces.dto.toCommand
 import org.happyzion.api.menu.interfaces.dto.toDto
@@ -29,6 +31,16 @@ class MenuAdminController(
         run {
         validateAdminKey(adminKey)
         menuManagementService.getAdminSnapshot(actorId).toDto()
+        }
+
+    @GetMapping("/static-pages")
+    fun getStaticPages(
+        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
+        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+    ) =
+        run {
+            validateAdminKey(adminKey)
+            AdminStaticPagesResponse(pages = StaticPageCatalog.allRoutes().map { it.toDto() })
         }
 
     @PutMapping("/tree")
