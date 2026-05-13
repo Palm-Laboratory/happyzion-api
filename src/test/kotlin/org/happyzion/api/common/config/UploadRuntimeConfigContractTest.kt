@@ -22,10 +22,10 @@ class UploadRuntimeConfigContractTest {
         assertThat(content).contains("file-size-threshold: 2MB")
         assertThat(content).contains("happyzion.uploads.root-path: \${HAPPYZION_UPLOAD_ROOT:/opt/happyzion/uploads}")
         assertThat(content).contains(
-            "happyzion.uploads.public-base-url: \${HAPPYZION_UPLOAD_PUBLIC_BASE_URL:https://api.happyzion.org/upload}",
+            "happyzion.uploads.public-base-url: \${HAPPYZION_UPLOAD_PUBLIC_BASE_URL:https://api.happyzion.com/upload}",
         )
-        assertThat(content).contains("https://happyzion.org")
-        assertThat(content).contains("https://www.happyzion.org")
+        assertThat(content).contains("https://happyzion.com")
+        assertThat(content).contains("https://www.happyzion.com")
         assertThat(content).doesNotContain("http://localhost:3000")
         assertThat(content).doesNotContain("http://127.0.0.1:3000")
         assertThat(localContent).contains("http://localhost:3000")
@@ -62,8 +62,8 @@ class UploadRuntimeConfigContractTest {
         assertThat(webConfig).contains("allowCredentials(false)")
         assertThat(webConfig).contains("maxAge(600)")
 
-        assertThat(corsProperties).contains("https://happyzion.org")
-        assertThat(corsProperties).contains("https://www.happyzion.org")
+        assertThat(corsProperties).contains("https://happyzion.com")
+        assertThat(corsProperties).contains("https://www.happyzion.com")
     }
 
     @Test

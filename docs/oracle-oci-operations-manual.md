@@ -178,9 +178,9 @@ DB_PASSWORD=<same-as-postgres-password>
 YOUTUBE_API_KEY=replace-me
 YOUTUBE_CHANNEL_ID=replace-me
 ADMIN_SYNC_KEY=replace-me
-CORS_ALLOWED_ORIGINS=https://www.happyzion.co.kr,https://happyzion.co.kr
+CORS_ALLOWED_ORIGINS=https://www.happyzion.com,https://happyzion.com
 HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads
-HAPPYZION_UPLOAD_PUBLIC_BASE_URL=https://api.happyzion.org/upload
+HAPPYZION_UPLOAD_PUBLIC_BASE_URL=https://api.happyzion.com/upload
 ```
 
 설명:
@@ -255,7 +255,7 @@ DB 복원이나 수동 점검이 필요하면 `db`만 먼저 올리고, 그 뒤 
 sudo mkdir -p /var/www/certbot
 sudo chown -R www-data:www-data /var/www/certbot
 
-sudo cp deploy/nginx/api.happyzion.org.pre-ssl.conf /etc/nginx/sites-available/<api-domain>
+sudo cp deploy/nginx/api.happyzion.com.pre-ssl.conf /etc/nginx/sites-available/<api-domain>
 sudo ln -sf /etc/nginx/sites-available/<api-domain> /etc/nginx/sites-enabled/<api-domain>
 sudo nginx -t
 sudo systemctl reload nginx
@@ -263,7 +263,7 @@ sudo systemctl reload nginx
 
 주의:
 
-- 저장소의 nginx 템플릿은 `api.happyzion.org` 기준이다.
+- 저장소의 nginx 템플릿은 `api.happyzion.com` 기준이다.
 - 실제 운영 도메인이 다르면 템플릿 내부 `server_name`과 파일명도 같이 바꿔야 한다.
 - 이 단계 전에 `<api-domain>` DNS가 운영 VM을 가리켜야 한다.
 
@@ -277,7 +277,7 @@ HTTPS 최종 설정:
 
 ```bash
 sudo cp deploy/nginx/happyzion-upload-http-context.conf /etc/nginx/conf.d/happyzion-upload-http-context.conf
-sudo cp deploy/nginx/api.happyzion.org.conf /etc/nginx/sites-available/<api-domain>
+sudo cp deploy/nginx/api.happyzion.com.conf /etc/nginx/sites-available/<api-domain>
 sudo nginx -t
 sudo systemctl reload nginx
 ```

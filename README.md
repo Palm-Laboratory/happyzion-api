@@ -64,8 +64,8 @@ YOUTUBE_CHANNEL_ID=replace-me
 - 업로드 기본 경로: `/opt/happyzion/uploads`
 - 운영 compose: `deploy/docker-compose.prod.yml`
 - nginx 템플릿:
-  - `deploy/nginx/api.happyzion.org.pre-ssl.conf`
+  - `deploy/nginx/api.happyzion.com.pre-ssl.conf`
   - `deploy/nginx/happyzion-upload-http-context.conf`
-  - `deploy/nginx/api.happyzion.org.conf`
+  - `deploy/nginx/api.happyzion.com.conf`
 
 운영 도메인이 확정되면 `.env.production.example`의 `CORS_ALLOWED_ORIGINS`와 `HAPPYZION_UPLOAD_PUBLIC_BASE_URL`, nginx `server_name`을 실제 도메인으로 맞춰야 합니다.
