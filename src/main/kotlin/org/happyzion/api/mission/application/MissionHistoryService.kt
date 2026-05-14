@@ -34,10 +34,22 @@ class MissionHistoryService(
     }
 
     @Transactional(readOnly = true)
+    fun listAdminYears(actorId: Long): List<MissionYearSummary> {
+        requireActiveAdmin(actorId)
+        return listYears()
+    }
+
+    @Transactional(readOnly = true)
     fun getYear(yearId: Long): MissionYearDetail {
         val year = requireYear(yearId)
         val entries = missionEntryRepository.findAllByYearIdOrderBySortOrderAscIdAsc(yearId)
         return year.toDetail(entries.map { it.toSummary() })
+    }
+
+    @Transactional(readOnly = true)
+    fun getAdminYear(actorId: Long, yearId: Long): MissionYearDetail {
+        requireActiveAdmin(actorId)
+        return getYear(yearId)
     }
 
     @Transactional

@@ -35,7 +35,7 @@ class MissionHistoryAdminController(
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
     ): MissionAdminListYearsResponse {
         validateAdminKey(adminKey)
-        return MissionAdminListYearsResponse(years = missionHistoryService.listYears().map { it.toResponse() })
+        return MissionAdminListYearsResponse(years = missionHistoryService.listAdminYears(actorId).map { it.toResponse() })
     }
 
     @GetMapping("/{yearId}")
@@ -45,7 +45,7 @@ class MissionHistoryAdminController(
         @PathVariable yearId: Long,
     ): MissionAdminYearDetailResponse {
         validateAdminKey(adminKey)
-        return missionHistoryService.getYear(yearId).toDetailResponse()
+        return missionHistoryService.getAdminYear(actorId, yearId).toDetailResponse()
     }
 
     @PostMapping
