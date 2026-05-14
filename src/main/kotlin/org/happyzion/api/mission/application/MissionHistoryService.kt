@@ -91,7 +91,7 @@ class MissionHistoryService(
                     month = cmd.month,
                     place = cmd.place,
                     isFirst = cmd.isFirst,
-                    sortOrder = cmd.sortOrder.takeIf { it != 0 } ?: index,
+                    sortOrder = index,
                 )
             }
         )
