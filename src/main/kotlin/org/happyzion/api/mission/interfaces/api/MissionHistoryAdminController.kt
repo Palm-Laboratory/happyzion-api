@@ -1,5 +1,9 @@
 package org.happyzion.api.mission.interfaces.api
 
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
 import org.happyzion.api.common.config.AdminProperties
 import org.happyzion.api.common.error.ForbiddenException
 import org.happyzion.api.mission.application.MissionEntryCommand
@@ -48,7 +52,7 @@ class MissionHistoryAdminController(
     fun createYear(
         @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
-        @RequestBody request: MissionYearCreateRequest,
+        @Valid @RequestBody request: MissionYearCreateRequest,
     ): MissionAdminYearDetailResponse {
         validateAdminKey(adminKey)
         return missionHistoryService.createYear(actorId, request.toCommand()).toDetailResponse()
@@ -59,7 +63,7 @@ class MissionHistoryAdminController(
         @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable yearId: Long,
-        @RequestBody request: MissionYearUpdateRequest,
+        @Valid @RequestBody request: MissionYearUpdateRequest,
     ): MissionAdminYearDetailResponse {
         validateAdminKey(adminKey)
         return missionHistoryService.updateYear(actorId, yearId, request.toCommand()).toDetailResponse()
@@ -83,10 +87,16 @@ class MissionHistoryAdminController(
 }
 
 data class MissionYearCreateRequest(
+    @field:NotBlank(message = "연도를 입력해 주세요.")
+    @field:Size(max = 20, message = "연도는 20자 이내로 입력해 주세요.")
     val year: String,
+    @field:NotBlank(message = "캡션을 입력해 주세요.")
+    @field:Size(max = 200, message = "캡션은 200자 이내로 입력해 주세요.")
     val caption: String,
+    @field:Pattern(regexp = "gold|red", message = "색상은 gold 또는 red만 사용할 수 있습니다.")
     val tone: String? = null,
     val sortOrder: Int? = null,
+    @field:Valid
     val entries: List<MissionEntryRequest> = emptyList(),
 ) {
     fun toCommand() = MissionYearCreateCommand(
@@ -99,10 +109,16 @@ data class MissionYearCreateRequest(
 }
 
 data class MissionYearUpdateRequest(
+    @field:NotBlank(message = "연도를 입력해 주세요.")
+    @field:Size(max = 20, message = "연도는 20자 이내로 입력해 주세요.")
     val year: String,
+    @field:NotBlank(message = "캡션을 입력해 주세요.")
+    @field:Size(max = 200, message = "캡션은 200자 이내로 입력해 주세요.")
     val caption: String,
+    @field:Pattern(regexp = "gold|red", message = "색상은 gold 또는 red만 사용할 수 있습니다.")
     val tone: String? = null,
     val sortOrder: Int? = null,
+    @field:Valid
     val entries: List<MissionEntryRequest> = emptyList(),
 ) {
     fun toCommand() = MissionYearUpdateCommand(
@@ -115,7 +131,13 @@ data class MissionYearUpdateRequest(
 }
 
 data class MissionEntryRequest(
+    @field:Pattern(
+        regexp = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec",
+        message = "월은 Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec 중 하나여야 합니다.",
+    )
     val month: String? = null,
+    @field:NotBlank(message = "나라/지역명을 입력해 주세요.")
+    @field:Size(max = 200, message = "나라/지역명은 200자 이내로 입력해 주세요.")
     val place: String,
     val isFirst: Boolean = false,
     val sortOrder: Int = 0,

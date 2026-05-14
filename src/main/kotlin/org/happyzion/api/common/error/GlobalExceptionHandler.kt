@@ -47,7 +47,17 @@ class GlobalExceptionHandler {
             message = "요청한 리소스를 찾을 수 없습니다.",
         )
 
-    @ExceptionHandler(MethodArgumentNotValidException::class, IllegalArgumentException::class)
+    @ExceptionHandler(MethodArgumentNotValidException::class)
+    fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ApiErrorResponse> =
+        errorResponse(
+            status = HttpStatus.BAD_REQUEST,
+            code = "INVALID_REQUEST",
+            message = ex.bindingResult.fieldErrors.firstOrNull()?.defaultMessage
+                ?: ex.bindingResult.globalErrors.firstOrNull()?.defaultMessage
+                ?: "잘못된 요청입니다.",
+        )
+
+    @ExceptionHandler(IllegalArgumentException::class)
     fun handleBadRequest(ex: Exception): ResponseEntity<ApiErrorResponse> =
         errorResponse(
             status = HttpStatus.BAD_REQUEST,
