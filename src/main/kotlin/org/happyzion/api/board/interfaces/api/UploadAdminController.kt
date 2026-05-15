@@ -4,8 +4,7 @@ import jakarta.validation.Valid
 import org.happyzion.api.board.application.UploadAssetService
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
+import org.happyzion.api.common.security.AdminKeyRequired
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -20,16 +19,13 @@ import org.springframework.web.multipart.MultipartFile
 class UploadAdminController(
     private val uploadTokenService: UploadTokenService,
     private val uploadAssetService: UploadAssetService,
-    private val adminProperties: AdminProperties,
 ) {
+    @AdminKeyRequired
     @PostMapping("/token")
     fun issueToken(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @Valid @RequestBody request: UploadTokenIssueRequest,
     ): UploadTokenIssueResponse {
-        validateAdminKey(adminKey)
-
         val result = uploadTokenService.issueToken(
             actorId = actorId,
             kind = request.kind,
@@ -60,17 +56,6 @@ class UploadAdminController(
             width = result.width,
             height = result.height,
         )
-    }
-
-    private fun validateAdminKey(adminKey: String?) {
-        val configuredKey = adminProperties.syncKey.trim()
-        if (configuredKey.isBlank()) {
-            throw IllegalStateException("ADMIN_SYNC_KEY is not configured.")
-        }
-
-        if (adminKey.isNullOrBlank() || adminKey != configuredKey) {
-            throw ForbiddenException("관리자 키가 올바르지 않습니다.")
-        }
     }
 }
 

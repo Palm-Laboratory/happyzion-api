@@ -7,8 +7,7 @@ import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountCreateRequest
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountUpdateRequest
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountsResponse
 import org.happyzion.api.adminaccount.interfaces.dto.toDto
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
+import org.happyzion.api.common.security.AdminKeyRequired
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -19,89 +18,61 @@ import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
+@AdminKeyRequired
 @RestController
 @RequestMapping("/api/v1/admin/accounts")
 class AdminAccountController(
     private val adminAccountManagementService: AdminAccountManagementService,
-    private val adminProperties: AdminProperties,
 ) {
     @GetMapping("/{id}")
     fun getAccount(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
-    ) = run {
-        validateAdminKey(adminKey)
-        adminAccountManagementService.getAccount(actorId, id).toDto()
-    }
+    ) = adminAccountManagementService.getAccount(actorId, id).toDto()
 
     @GetMapping
     fun getAccounts(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
-    ): AdminAccountsResponse {
-        validateAdminKey(adminKey)
-        return AdminAccountsResponse(
-            accounts = adminAccountManagementService.getAccounts(actorId).map { it.toDto() }
+    ): AdminAccountsResponse =
+        AdminAccountsResponse(
+            accounts = adminAccountManagementService.getAccounts(actorId).map { it.toDto() },
         )
-    }
 
     @PostMapping
     fun createAccount(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @Valid @RequestBody request: AdminAccountCreateRequest,
-    ) = run {
-        validateAdminKey(adminKey)
-        adminAccountManagementService.createAdminAccount(
-            actorId = actorId,
-            CreateAdminAccountCommand(
-                username = request.username,
-                displayName = request.displayName,
-                password = request.password,
-            )
-        ).toDto()
-    }
+    ) = adminAccountManagementService.createAdminAccount(
+        actorId = actorId,
+        CreateAdminAccountCommand(
+            username = request.username,
+            displayName = request.displayName,
+            password = request.password,
+        ),
+    ).toDto()
 
     @PutMapping("/{id}")
     fun updateAccount(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
         @Valid @RequestBody request: AdminAccountUpdateRequest,
-    ) = run {
-        validateAdminKey(adminKey)
-        adminAccountManagementService.updateAdminAccount(
-            actorId = actorId,
-            accountId = id,
-            command = org.happyzion.api.adminaccount.application.UpdateAdminAccountCommand(
-                username = request.username,
-                displayName = request.displayName,
-                role = request.role,
-                active = request.active,
-                password = request.password,
-            )
-        ).toDto()
-    }
+    ) = adminAccountManagementService.updateAdminAccount(
+        actorId = actorId,
+        accountId = id,
+        command = org.happyzion.api.adminaccount.application.UpdateAdminAccountCommand(
+            username = request.username,
+            displayName = request.displayName,
+            role = request.role,
+            active = request.active,
+            password = request.password,
+        ),
+    ).toDto()
 
     @DeleteMapping("/{id}")
     fun deleteAccount(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
     ) {
-        validateAdminKey(adminKey)
         adminAccountManagementService.deleteAdminAccount(actorId, id)
-    }
-
-    private fun validateAdminKey(adminKey: String?) {
-        val configuredKey = adminProperties.syncKey.trim()
-        if (configuredKey.isBlank()) {
-            throw IllegalStateException("ADMIN_SYNC_KEY is not configured.")
-        }
-
-        if (adminKey.isNullOrBlank() || adminKey != configuredKey) {
-            throw ForbiddenException("관리자 키가 올바르지 않습니다.")
-        }
     }
 }

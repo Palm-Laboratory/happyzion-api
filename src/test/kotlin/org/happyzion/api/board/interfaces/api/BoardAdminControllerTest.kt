@@ -10,16 +10,12 @@ import org.happyzion.api.board.application.BoardAdminService
 import org.happyzion.api.board.application.BoardPostSaveCommand
 import org.happyzion.api.board.domain.BoardType
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import java.time.OffsetDateTime
 
@@ -28,7 +24,7 @@ class BoardAdminControllerTest {
     private val boardAdminService: BoardAdminService = mock()
 
     @Test
-    fun `list boards delegates to board admin service when admin key matches`() {
+    fun `list boards delegates to board admin service`() {
         val controller = controller()
         whenever(boardAdminService.listBoards(42L)).thenReturn(
             listOf(
@@ -42,10 +38,7 @@ class BoardAdminControllerTest {
             )
         )
 
-        val response = controller.listBoards(
-            adminKey = "secret-key",
-            actorId = 42L,
-        )
+        val response = controller.listBoards(actorId = 42L)
 
         assertThat(response.boards).hasSize(1)
         assertThat(response.boards[0].slug).isEqualTo("notice")
@@ -54,7 +47,7 @@ class BoardAdminControllerTest {
     }
 
     @Test
-    fun `list posts delegates to board admin service when admin key matches`() {
+    fun `list posts delegates to board admin service`() {
         val controller = controller()
         val createdAt = OffsetDateTime.parse("2026-04-20T10:15:30+09:00")
         val updatedAt = createdAt.plusHours(1)
@@ -78,7 +71,6 @@ class BoardAdminControllerTest {
         )
 
         val response = controller.listPosts(
-            adminKey = "secret-key",
             actorId = 42L,
             slug = "notice",
         )
@@ -92,7 +84,7 @@ class BoardAdminControllerTest {
     }
 
     @Test
-    fun `get post delegates to board admin service when admin key matches`() {
+    fun `get post delegates to board admin service`() {
         val controller = controller()
         val createdAt = OffsetDateTime.parse("2026-04-20T10:15:30+09:00")
         val updatedAt = createdAt.plusHours(1)
@@ -136,7 +128,6 @@ class BoardAdminControllerTest {
         )
 
         val response = controller.getPost(
-            adminKey = "secret-key",
             actorId = 42L,
             slug = "notice",
             postId = 11L,
@@ -176,7 +167,6 @@ class BoardAdminControllerTest {
         ).thenReturn(BoardAdminPostSaveResult(id = 11L))
 
         val response = controller.createPost(
-            adminKey = "secret-key",
             actorId = 42L,
             slug = "notice",
             request = saveRequest(),
@@ -212,7 +202,6 @@ class BoardAdminControllerTest {
         ).thenReturn(BoardAdminPostSaveResult(id = 11L))
 
         val response = controller.updatePost(
-            adminKey = "secret-key",
             actorId = 42L,
             slug = "notice",
             postId = 11L,
@@ -237,11 +226,10 @@ class BoardAdminControllerTest {
     }
 
     @Test
-    fun `delete post delegates to board admin service when admin key matches`() {
+    fun `delete post delegates to board admin service`() {
         val controller = controller()
 
         controller.deletePost(
-            adminKey = "secret-key",
             actorId = 42L,
             slug = "notice",
             postId = 11L,
@@ -250,39 +238,8 @@ class BoardAdminControllerTest {
         verify(boardAdminService).deletePost(42L, "notice", 11L)
     }
 
-    @Test
-    fun `list boards throws forbidden when admin key is wrong and does not call service`() {
-        val controller = controller()
-
-        assertThrows<ForbiddenException> {
-            controller.listBoards(
-                adminKey = "wrong-key",
-                actorId = 42L,
-            )
-        }
-
-        verifyNoInteractions(boardAdminService)
-    }
-
-    @Test
-    fun `list boards throws forbidden when admin key is missing and does not call service`() {
-        val controller = controller()
-
-        assertThrows<ForbiddenException> {
-            controller.listBoards(
-                adminKey = null,
-                actorId = 42L,
-            )
-        }
-
-        verifyNoInteractions(boardAdminService)
-    }
-
     private fun controller(): BoardAdminController =
-        BoardAdminController(
-            boardAdminService = boardAdminService,
-            adminProperties = AdminProperties(syncKey = "secret-key"),
-        )
+        BoardAdminController(boardAdminService = boardAdminService)
 
     private fun saveRequest(): BoardPostSaveRequest =
         BoardPostSaveRequest(

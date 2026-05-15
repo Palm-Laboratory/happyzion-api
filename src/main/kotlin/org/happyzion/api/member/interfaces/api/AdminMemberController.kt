@@ -1,8 +1,7 @@
 package org.happyzion.api.member.interfaces.api
 
 import jakarta.validation.Valid
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
+import org.happyzion.api.common.security.AdminKeyRequired
 import org.happyzion.api.member.application.AdminMemberAttendanceRecord
 import org.happyzion.api.member.application.AdminMemberDetail
 import org.happyzion.api.member.application.AdminMemberEventItem
@@ -36,15 +35,14 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 
+@AdminKeyRequired
 @RestController
 @RequestMapping("/api/v1/admin/members")
 class AdminMemberController(
     private val adminMemberService: AdminMemberService,
-    private val adminProperties: AdminProperties,
 ) {
     @GetMapping
     fun listMembers(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @RequestParam(required = false) query: String? = null,
         @RequestParam(required = false) status: MemberStatus? = null,
@@ -52,68 +50,43 @@ class AdminMemberController(
         @RequestParam(required = false) cellId: String? = null,
         @RequestParam(required = false, defaultValue = "0") page: Int = 0,
         @RequestParam(required = false, defaultValue = "20") size: Int = 20,
-    ): AdminMembersPageResponse {
-        validateAdminKey(adminKey)
-        return adminMemberService
+    ): AdminMembersPageResponse =
+        adminMemberService
             .listMembers(actorId, query, status, stage, cellId, page, size)
             .toResponse()
-    }
 
     @GetMapping("/{id}")
     fun getMember(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
-    ): AdminMemberDetailResponse {
-        validateAdminKey(adminKey)
-        return adminMemberService.getMemberDetail(actorId, id).toResponse()
-    }
+    ): AdminMemberDetailResponse =
+        adminMemberService.getMemberDetail(actorId, id).toResponse()
 
     @PostMapping
     fun createMember(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @Valid @RequestBody request: AdminMemberSaveRequest,
-    ): AdminMemberDetailResponse {
-        validateAdminKey(adminKey)
-        return adminMemberService.createMember(actorId, request.toCreateCommand()).toResponse()
-    }
+    ): AdminMemberDetailResponse =
+        adminMemberService.createMember(actorId, request.toCreateCommand()).toResponse()
 
     @PatchMapping("/{id}")
     fun updateMember(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
         @Valid @RequestBody request: AdminMemberSaveRequest,
-    ): AdminMemberDetailResponse {
-        validateAdminKey(adminKey)
-        return adminMemberService.updateMember(actorId, id, request.toUpdateCommand()).toResponse()
-    }
+    ): AdminMemberDetailResponse =
+        adminMemberService.updateMember(actorId, id, request.toUpdateCommand()).toResponse()
 
     @GetMapping("/{id}/attendance")
     fun getAttendance(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable id: Long,
         @RequestParam(required = false) from: LocalDate? = null,
         @RequestParam(required = false) to: LocalDate? = null,
-    ): AdminMemberAttendanceResponse {
-        validateAdminKey(adminKey)
-        return AdminMemberAttendanceResponse(
+    ): AdminMemberAttendanceResponse =
+        AdminMemberAttendanceResponse(
             records = adminMemberService.getAttendance(actorId, id, from, to).map { it.toResponse() },
         )
-    }
-
-    private fun validateAdminKey(adminKey: String?) {
-        val configuredKey = adminProperties.syncKey.trim()
-        if (configuredKey.isBlank()) {
-            throw IllegalStateException("ADMIN_SYNC_KEY is not configured.")
-        }
-
-        if (adminKey.isNullOrBlank() || adminKey != configuredKey) {
-            throw ForbiddenException("관리자 키가 올바르지 않습니다.")
-        }
-    }
 }
 
 data class AdminMemberSaveRequest(

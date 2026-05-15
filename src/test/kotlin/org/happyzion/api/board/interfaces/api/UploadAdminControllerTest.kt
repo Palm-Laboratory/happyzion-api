@@ -5,11 +5,8 @@ import org.happyzion.api.board.application.UploadedAssetResult
 import org.happyzion.api.board.application.UploadTokenIssueResult
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -24,11 +21,10 @@ class UploadAdminControllerTest {
     private val uploadAssetService: UploadAssetService = mock()
 
     @Test
-    fun `issue token delegates to upload token service and returns raw token value when admin key matches`() {
+    fun `issue token delegates to upload token service and returns raw token value`() {
         val controller = UploadAdminController(
             uploadTokenService = uploadTokenService,
             uploadAssetService = uploadAssetService,
-            adminProperties = AdminProperties(syncKey = "secret-key"),
         )
         whenever(
             uploadTokenService.issueToken(
@@ -42,7 +38,6 @@ class UploadAdminControllerTest {
         )
 
         val response = controller.issueToken(
-            adminKey = "secret-key",
             actorId = 42L,
             request = UploadTokenIssueRequest(
                 kind = PostAssetKind.FILE_ATTACHMENT,
@@ -61,80 +56,10 @@ class UploadAdminControllerTest {
     }
 
     @Test
-    fun `issue token throws forbidden when admin key is wrong and does not call service`() {
-        val controller = UploadAdminController(
-            uploadTokenService = uploadTokenService,
-            uploadAssetService = uploadAssetService,
-            adminProperties = AdminProperties(syncKey = "secret-key"),
-        )
-
-        assertThrows<ForbiddenException> {
-            controller.issueToken(
-                adminKey = "wrong-key",
-                actorId = 42L,
-                request = UploadTokenIssueRequest(
-                    kind = PostAssetKind.FILE_ATTACHMENT,
-                    maxByteSize = 1_234_567L,
-                    allowedMimeTypes = listOf("application/pdf", "image/png"),
-                ),
-            )
-        }
-
-        verifyNoInteractions(uploadTokenService)
-    }
-
-    @Test
-    fun `issue token throws forbidden when admin key is missing and does not call service`() {
-        val controller = UploadAdminController(
-            uploadTokenService = uploadTokenService,
-            uploadAssetService = uploadAssetService,
-            adminProperties = AdminProperties(syncKey = "secret-key"),
-        )
-
-        assertThrows<ForbiddenException> {
-            controller.issueToken(
-                adminKey = null,
-                actorId = 42L,
-                request = UploadTokenIssueRequest(
-                    kind = PostAssetKind.FILE_ATTACHMENT,
-                    maxByteSize = 1_234_567L,
-                    allowedMimeTypes = listOf("application/pdf", "image/png"),
-                ),
-            )
-        }
-
-        verifyNoInteractions(uploadTokenService)
-    }
-
-    @Test
-    fun `issue token throws illegal state when admin sync key is blank`() {
-        val controller = UploadAdminController(
-            uploadTokenService = uploadTokenService,
-            uploadAssetService = uploadAssetService,
-            adminProperties = AdminProperties(syncKey = "   "),
-        )
-
-        assertThrows<IllegalStateException> {
-            controller.issueToken(
-                adminKey = "secret-key",
-                actorId = 42L,
-                request = UploadTokenIssueRequest(
-                    kind = PostAssetKind.FILE_ATTACHMENT,
-                    maxByteSize = 1_234_567L,
-                    allowedMimeTypes = listOf("application/pdf", "image/png"),
-                ),
-            )
-        }
-
-        verifyNoInteractions(uploadTokenService)
-    }
-
-    @Test
     fun `upload delegates to upload asset service and returns uploaded asset metadata`() {
         val controller = UploadAdminController(
             uploadTokenService = uploadTokenService,
             uploadAssetService = uploadAssetService,
-            adminProperties = AdminProperties(syncKey = "secret-key"),
         )
         val file = MockMultipartFile(
             "file",
@@ -180,8 +105,9 @@ class UploadAdminControllerTest {
     }
 
     @Test
-    fun `issue token endpoint is admin-key only and does not expose X Upload Token header`() {
+    fun `issue token endpoint does not expose X Upload Token header`() {
         val hasUploadTokenHeader = UploadAdminController::class.java.declaredMethods
+            .filter { it.name == "issueToken" }
             .flatMap { method -> method.parameters.asList() }
             .any { parameter ->
                 parameter.annotations.filterIsInstance<RequestHeader>()

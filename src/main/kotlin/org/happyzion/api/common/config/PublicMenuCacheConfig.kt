@@ -11,6 +11,7 @@ import org.springframework.cache.transaction.TransactionAwareCacheManagerProxy
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
+import java.time.Duration.parse
 
 object PublicMenuCacheNames {
     const val NAVIGATION = "public-menu-navigation"
@@ -33,8 +34,9 @@ class PublicMenuCacheConfig {
 
     @Bean
     fun cacheManager(
-        @Value("\${app.cache.public-menu.ttl:PT10M}") ttl: Duration,
+        @Value("\${app.cache.public-menu.ttl:PT10M}") ttlString: String,
     ): CacheManager {
+        val ttl: Duration = parse(ttlString)
         val manager = CaffeineCacheManager(
             PublicMenuCacheNames.NAVIGATION,
             PublicMenuCacheNames.RESOLVE,

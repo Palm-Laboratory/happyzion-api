@@ -1,13 +1,21 @@
 package org.happyzion.api.common.config
 
+import org.happyzion.api.common.security.AdminKeyInterceptor
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.servlet.config.annotation.CorsRegistry
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
 class WebConfig(
     private val corsProperties: CorsProperties,
+    private val adminKeyInterceptor: AdminKeyInterceptor,
 ) : WebMvcConfigurer {
+
+    override fun addInterceptors(registry: InterceptorRegistry) {
+        registry.addInterceptor(adminKeyInterceptor)
+            .addPathPatterns("/api/v1/admin/**")
+    }
 
     override fun addCorsMappings(registry: CorsRegistry) {
         val allowedOrigins = corsProperties.allowedOrigins

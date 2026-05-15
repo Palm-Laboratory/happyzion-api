@@ -4,8 +4,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
+import org.happyzion.api.common.security.AdminKeyRequired
 import org.happyzion.api.mission.application.MissionEntryCommand
 import org.happyzion.api.mission.application.MissionHistoryService
 import org.happyzion.api.mission.application.MissionYearCreateCommand
@@ -23,66 +22,46 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
 
+@AdminKeyRequired
 @RestController
 @RequestMapping("/api/v1/admin/mission-history")
 class MissionHistoryAdminController(
     private val missionHistoryService: MissionHistoryService,
-    private val adminProperties: AdminProperties,
 ) {
     @GetMapping
     fun listYears(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
-    ): MissionAdminListYearsResponse {
-        validateAdminKey(adminKey)
-        return MissionAdminListYearsResponse(years = missionHistoryService.listAdminYears(actorId).map { it.toResponse() })
-    }
+    ): MissionAdminListYearsResponse =
+        MissionAdminListYearsResponse(years = missionHistoryService.listAdminYears(actorId).map { it.toResponse() })
 
     @GetMapping("/{yearId}")
     fun getYear(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable yearId: Long,
-    ): MissionAdminYearDetailResponse {
-        validateAdminKey(adminKey)
-        return missionHistoryService.getAdminYear(actorId, yearId).toDetailResponse()
-    }
+    ): MissionAdminYearDetailResponse =
+        missionHistoryService.getAdminYear(actorId, yearId).toDetailResponse()
 
     @PostMapping
     fun createYear(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @Valid @RequestBody request: MissionYearCreateRequest,
-    ): MissionAdminYearDetailResponse {
-        validateAdminKey(adminKey)
-        return missionHistoryService.createYear(actorId, request.toCommand()).toDetailResponse()
-    }
+    ): MissionAdminYearDetailResponse =
+        missionHistoryService.createYear(actorId, request.toCommand()).toDetailResponse()
 
     @PutMapping("/{yearId}")
     fun updateYear(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable yearId: Long,
         @Valid @RequestBody request: MissionYearUpdateRequest,
-    ): MissionAdminYearDetailResponse {
-        validateAdminKey(adminKey)
-        return missionHistoryService.updateYear(actorId, yearId, request.toCommand()).toDetailResponse()
-    }
+    ): MissionAdminYearDetailResponse =
+        missionHistoryService.updateYear(actorId, yearId, request.toCommand()).toDetailResponse()
 
     @DeleteMapping("/{yearId}")
     fun deleteYear(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable yearId: Long,
     ) {
-        validateAdminKey(adminKey)
         missionHistoryService.deleteYear(actorId, yearId)
-    }
-
-    private fun validateAdminKey(adminKey: String?) {
-        val configuredKey = adminProperties.syncKey.trim()
-        if (configuredKey.isBlank()) throw IllegalStateException("ADMIN_SYNC_KEY is not configured.")
-        if (adminKey.isNullOrBlank() || adminKey != configuredKey) throw ForbiddenException("관리자 키가 올바르지 않습니다.")
     }
 }
 

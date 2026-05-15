@@ -9,8 +9,7 @@ import org.happyzion.api.board.application.BoardAdminService
 import org.happyzion.api.board.application.BoardPostSaveCommand
 import org.happyzion.api.board.domain.BoardType
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.config.AdminProperties
-import org.happyzion.api.common.error.ForbiddenException
+import org.happyzion.api.common.security.AdminKeyRequired
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -23,19 +22,16 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
 
+@AdminKeyRequired
 @RestController
 @RequestMapping("/api/v1/admin/boards")
 class BoardAdminController(
     private val boardAdminService: BoardAdminService,
-    private val adminProperties: AdminProperties,
 ) {
     @GetMapping
     fun listBoards(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
     ): BoardAdminListBoardsResponse {
-        validateAdminKey(adminKey)
-
         return BoardAdminListBoardsResponse(
             boards = boardAdminService.listBoards(actorId).map { it.toResponse() },
         )
@@ -43,7 +39,6 @@ class BoardAdminController(
 
     @GetMapping("/{slug}/posts")
     fun listPosts(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable slug: String,
         @RequestParam(required = false) menuId: Long? = null,
@@ -51,7 +46,6 @@ class BoardAdminController(
         @RequestParam(required = false, defaultValue = "20") size: Int = 20,
         @RequestParam(required = false) title: String? = null,
     ): BoardAdminListPostsResponse {
-        validateAdminKey(adminKey)
         val result = boardAdminService.listPosts(actorId, slug, menuId, page, size, title)
         return BoardAdminListPostsResponse(
             posts = result.posts.map { it.toResponse() },
@@ -61,26 +55,20 @@ class BoardAdminController(
 
     @GetMapping("/{slug}/posts/{postId}")
     fun getPost(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestParam(required = false) menuId: Long? = null,
     ): BoardAdminPostDetailResponse {
-        validateAdminKey(adminKey)
-
         return boardAdminService.getPost(actorId, slug, postId, menuId).toResponse()
     }
 
     @PostMapping("/{slug}/posts")
     fun createPost(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable slug: String,
         @RequestBody request: BoardPostSaveRequest,
     ): BoardAdminPostSaveResponse {
-        validateAdminKey(adminKey)
-
         return boardAdminService.createPost(
             actorId = actorId,
             boardSlug = slug,
@@ -90,14 +78,11 @@ class BoardAdminController(
 
     @PutMapping("/{slug}/posts/{postId}")
     fun updatePost(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestBody request: BoardPostSaveRequest,
     ): BoardAdminPostSaveResponse {
-        validateAdminKey(adminKey)
-
         return boardAdminService.updatePost(
             actorId = actorId,
             boardSlug = slug,
@@ -108,25 +93,12 @@ class BoardAdminController(
 
     @DeleteMapping("/{slug}/posts/{postId}")
     fun deletePost(
-        @RequestHeader("X-Admin-Key", required = false) adminKey: String?,
         @RequestHeader("X-Admin-Actor-Id") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestParam(required = false) menuId: Long? = null,
     ) {
-        validateAdminKey(adminKey)
         boardAdminService.deletePost(actorId, slug, postId, menuId)
-    }
-
-    private fun validateAdminKey(adminKey: String?) {
-        val configuredKey = adminProperties.syncKey.trim()
-        if (configuredKey.isBlank()) {
-            throw IllegalStateException("ADMIN_SYNC_KEY is not configured.")
-        }
-
-        if (adminKey.isNullOrBlank() || adminKey != configuredKey) {
-            throw ForbiddenException("관리자 키가 올바르지 않습니다.")
-        }
     }
 }
 
