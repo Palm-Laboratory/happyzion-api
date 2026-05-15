@@ -9,6 +9,7 @@ import org.happyzion.api.board.application.PublicBoardService
 import org.happyzion.api.board.domain.PostAssetKind
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -27,7 +28,7 @@ class PublicBoardController(
         @RequestParam(required = false) menuId: Long? = null,
         @RequestParam(required = false) title: String? = null,
     ): PublicBoardListPostsResponse =
-        publicBoardService.listPosts(slug, page, size, menuId, title).toResponse()
+        publicBoardService.listPosts(slug, page, size.coerceAtMost(MAX_PUBLIC_PAGE_SIZE), menuId, title).toResponse()
 
     @GetMapping("/{slug}/posts/{postId}")
     fun getPost(
@@ -36,7 +37,18 @@ class PublicBoardController(
         @RequestParam(required = false) menuId: Long? = null,
     ): PublicBoardPostDetailResponse =
         publicBoardService.getPost(slug, postId, menuId).toResponse()
+
+    @PostMapping("/{slug}/posts/{postId}/views")
+    fun recordPostView(
+        @PathVariable slug: String,
+        @PathVariable postId: Long,
+        @RequestParam(required = false) menuId: Long? = null,
+    ) {
+        publicBoardService.recordPostView(slug, postId, menuId)
+    }
 }
+
+private const val MAX_PUBLIC_PAGE_SIZE = 50
 
 data class PublicBoardListPostsResponse(
     val page: Int,

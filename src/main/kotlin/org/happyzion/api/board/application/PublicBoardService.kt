@@ -31,7 +31,7 @@ class PublicBoardService(
     fun listPosts(boardSlug: String, page: Int, size: Int, menuId: Long? = null, title: String? = null): PublicBoardPostListResult {
         val board = requirePublishedBoard(boardSlug, menuId)
         val boardId = requireBoardId(board)
-        val pageRequest = PageRequest.of(page, size)
+        val pageRequest = PageRequest.of(page, size.coerceAtMost(MAX_PUBLIC_PAGE_SIZE))
         val normalizedTitle = title?.trim()?.takeIf { it.isNotEmpty() }
         val posts = when {
             normalizedTitle != null && menuId != null ->
@@ -69,17 +69,11 @@ class PublicBoardService(
         )
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     fun getPost(boardSlug: String, postId: Long, menuId: Long? = null): PublicBoardPostDetail {
         val board = requirePublishedBoard(boardSlug, menuId)
         val boardId = requireBoardId(board)
-        val post = if (menuId != null) {
-            postRepository.findByMenuIdAndIdAndIsPublicTrue(menuId, postId)
-        } else {
-            postRepository.findByBoardIdAndIdAndIsPublicTrue(boardId, postId)
-        }
-            ?: throw NotFoundException("게시글을 찾을 수 없습니다. id=$postId")
-        post.viewCount += 1
+        val post = requirePublicPost(boardId, postId, menuId)
         val assets = postAssetRepository.findAllByPostIdOrderBySortOrderAscIdAsc(postId)
         val authorName = adminAccountRepository.findById(post.authorId)
             .map { it.displayName }
@@ -115,6 +109,15 @@ class PublicBoardService(
         )
     }
 
+    @Transactional
+    fun recordPostView(boardSlug: String, postId: Long, menuId: Long? = null) {
+        val board = requirePublishedBoard(boardSlug, menuId)
+        val boardId = requireBoardId(board)
+        val post = requirePublicPost(boardId, postId, menuId)
+
+        post.viewCount += 1
+    }
+
     private fun requirePublishedBoard(slug: String, menuId: Long? = null): Board {
         val board = boardRepository.findBySlug(slug)
             ?: throw NotFoundException("게시판을 찾을 수 없습니다. slug=$slug")
@@ -137,6 +140,14 @@ class PublicBoardService(
 
     private fun requireBoardId(board: Board): Long =
         board.id ?: throw IllegalStateException("게시판 id가 없습니다.")
+
+    private fun requirePublicPost(boardId: Long, postId: Long, menuId: Long?): Post =
+        if (menuId != null) {
+            postRepository.findByMenuIdAndIdAndIsPublicTrue(menuId, postId)
+        } else {
+            postRepository.findByBoardIdAndIdAndIsPublicTrue(boardId, postId)
+        }
+            ?: throw NotFoundException("게시글을 찾을 수 없습니다. id=$postId")
 
     private fun Post.toPublicSummary(authorName: String, assets: List<PostAsset>): PublicBoardPostSummary =
         PublicBoardPostSummary(
@@ -183,6 +194,7 @@ class PublicBoardService(
         VIDEO_EMBED_REGEX.containsMatchIn(contentHtml.orEmpty()) || VIDEO_EMBED_REGEX.containsMatchIn(contentJson)
 
     companion object {
+        private const val MAX_PUBLIC_PAGE_SIZE = 50
         private val VIDEO_EMBED_REGEX = Regex("""youtube(?:-nocookie)?\.com|youtu\.be|<iframe\b|"type"\s*:\s*"(?:youtube|youtubeEmbed)"""")
     }
 }

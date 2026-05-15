@@ -9,6 +9,7 @@ import org.happyzion.api.board.application.PublicBoardService
 import org.happyzion.api.board.domain.PostAssetKind
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.mockito.Mockito.mockingDetails
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -90,6 +91,30 @@ class PublicBoardControllerTest {
         assertThat(response.posts.map { it.createdAt }).containsExactly(createdAt, createdAt.plusDays(1))
         assertThat(response.posts.map { it.updatedAt }).containsExactly(updatedAt, updatedAt.plusDays(1))
         verify(publicBoardService).listPosts("notice", 1, 10, null, "예배")
+    }
+
+    @Test
+    fun `list posts clamps requested public page size before delegating to service`() {
+        val controller = controller()
+        whenever(publicBoardService.listPosts("notice", 0, 50, 1001L, null)).thenReturn(
+            PublicBoardPostListResult(
+                page = 0,
+                size = 50,
+                totalElements = 0L,
+                hasNext = false,
+                posts = emptyList(),
+            )
+        )
+
+        val response = controller.listPosts(
+            slug = "notice",
+            page = 0,
+            size = 500,
+            menuId = 1001L,
+        )
+
+        assertThat(response.size).isEqualTo(50)
+        verify(publicBoardService).listPosts("notice", 0, 50, 1001L, null)
     }
 
     @Test
@@ -185,6 +210,31 @@ class PublicBoardControllerTest {
         assertThat(response.nextPost?.id).isEqualTo(12L)
         assertThat(response.nextPost?.title).isEqualTo("다음 게시글")
         verify(publicBoardService).getPost("notice", 11L)
+    }
+
+    @Test
+    fun `record post view endpoint delegates to public board service`() {
+        val controller = controller()
+        val recordPostView = controller.javaClass.methods.singleOrNull {
+            it.name == "recordPostView" && it.parameterCount == 3
+        }
+
+        assertThat(recordPostView)
+            .describedAs("PublicBoardController should expose recordPostView(slug, postId, menuId)")
+            .isNotNull
+        assertThat(recordPostView!!.getAnnotation(org.springframework.web.bind.annotation.PostMapping::class.java))
+            .describedAs("View counting should be a separate POST endpoint")
+            .isNotNull
+
+        recordPostView.invoke(controller, "notice", 11L, 1001L)
+
+        val serviceInvocation = mockingDetails(publicBoardService).invocations.singleOrNull {
+            it.method.name == "recordPostView"
+        }
+        assertThat(serviceInvocation)
+            .describedAs("Expected controller view endpoint to delegate to PublicBoardService.recordPostView")
+            .isNotNull
+        assertThat(serviceInvocation!!.arguments.toList()).containsExactly("notice", 11L, 1001L)
     }
 
     private fun controller(): PublicBoardController =

@@ -142,6 +142,42 @@ class PublicBoardServiceTest {
     }
 
     @Test
+    fun `list posts clamps requested page size to public operational maximum`() {
+        val board = board(slug = "notice")
+        val operationalMaxPageRequest = PageRequest.of(0, 50)
+        val unboundedPageRequest = PageRequest.of(0, 500)
+        whenever(boardRepository.findBySlug("notice")).thenReturn(board)
+        whenever(
+            menuItemRepository.existsByTypeAndStatusAndBoardKey(
+                MenuType.BOARD,
+                MenuStatus.PUBLISHED,
+                "notice",
+            )
+        ).thenReturn(true)
+        whenever(
+            postRepository.findAllByBoardIdAndIsPublicTrueOrderByIsPinnedDescCreatedAtDescIdDesc(
+                board.id!!,
+                operationalMaxPageRequest,
+            )
+        ).thenReturn(PageImpl(emptyList(), operationalMaxPageRequest, 0))
+        whenever(
+            postRepository.findAllByBoardIdAndIsPublicTrueOrderByIsPinnedDescCreatedAtDescIdDesc(
+                board.id!!,
+                unboundedPageRequest,
+            )
+        ).thenReturn(PageImpl(emptyList(), unboundedPageRequest, 0))
+        whenever(adminAccountRepository.findAllById(emptyList<Long>())).thenReturn(emptyList())
+
+        val result = service.listPosts(boardSlug = "notice", page = 0, size = 500)
+
+        assertThat(result.size).isEqualTo(50)
+        verify(postRepository).findAllByBoardIdAndIsPublicTrueOrderByIsPinnedDescCreatedAtDescIdDesc(
+            board.id!!,
+            operationalMaxPageRequest,
+        )
+    }
+
+    @Test
     fun `list posts returns hasNext false on last page and hasNext true when more pages exist`() {
         val board = board(slug = "notice")
         whenever(boardRepository.findBySlug("notice")).thenReturn(board)
@@ -265,7 +301,7 @@ class PublicBoardServiceTest {
     }
 
     @Test
-    fun `get post returns content and attached assets with public urls composed from upload base url`() {
+    fun `get post returns content and attached assets without changing view count`() {
         val board = board(slug = "notice")
         val post = post(
             id = 99L,
@@ -273,6 +309,7 @@ class PublicBoardServiceTest {
             title = "첨부 있는 글",
             contentJson = """{"type":"doc","content":[]}""",
             contentHtml = "<p>첨부 있는 글</p>",
+            viewCount = 41L,
         )
         val image = asset(
             id = 201L,
@@ -302,7 +339,8 @@ class PublicBoardServiceTest {
         assertThat(result.id).isEqualTo(99L)
         assertThat(result.title).isEqualTo("첨부 있는 글")
         assertThat(result.authorName).isEqualTo("관리자")
-        assertThat(result.viewCount).isEqualTo(1L)
+        assertThat(result.viewCount).isEqualTo(41L)
+        assertThat(post.viewCount).isEqualTo(41L)
         assertThat(result.contentJson).isEqualTo("""{"type":"doc","content":[]}""")
         assertThat(result.contentHtml).isEqualTo("<p>첨부 있는 글</p>")
         assertThat(result.assets).hasSize(1)
@@ -316,6 +354,35 @@ class PublicBoardServiceTest {
         assertThat(result.previousPost?.title).isEqualTo("이전 글")
         assertThat(result.nextPost?.id).isEqualTo(98L)
         assertThat(result.nextPost?.title).isEqualTo("다음 글")
+    }
+
+    @Test
+    fun `record post view increments view count through dedicated service call without loading detail graph`() {
+        val board = board(slug = "notice")
+        val post = post(id = 99L, boardId = board.id!!, title = "조회수 기록 글", viewCount = 7L)
+        whenever(boardRepository.findBySlug("notice")).thenReturn(board)
+        whenever(
+            menuItemRepository.existsByTypeAndStatusAndBoardKey(
+                MenuType.BOARD,
+                MenuStatus.PUBLISHED,
+                "notice",
+            )
+        ).thenReturn(true)
+        whenever(postRepository.findByBoardIdAndIdAndIsPublicTrue(board.id!!, 99L)).thenReturn(post)
+
+        val recordPostView = service.javaClass.methods.singleOrNull {
+            it.name == "recordPostView" && it.parameterCount == 3
+        }
+
+        assertThat(recordPostView)
+            .describedAs("PublicBoardService should expose recordPostView(boardSlug, postId, menuId) for view counting")
+            .isNotNull
+
+        recordPostView!!.invoke(service, "notice", 99L, null)
+
+        assertThat(post.viewCount).isEqualTo(8L)
+        verify(postAssetRepository, never()).findAllByPostIdOrderBySortOrderAscIdAsc(99L)
+        verify(adminAccountRepository, never()).findById(1L)
     }
 
     @Test
