@@ -1,5 +1,6 @@
 package org.happyzion.api.video.interfaces.dto
 
+import io.swagger.v3.oas.annotations.media.Schema
 import org.happyzion.api.video.application.AdminVideoDetail
 import org.happyzion.api.video.application.AdminVideoSummary
 import org.happyzion.api.video.application.PublicVideoDetail
@@ -11,6 +12,7 @@ import org.happyzion.api.video.application.UpdateVideoMetaCommand
 import org.happyzion.api.youtube.domain.YouTubeContentForm
 import java.time.OffsetDateTime
 
+@Schema(name = "VideoPlaylistItemSummary")
 data class PublicVideoSummaryDto(
     val videoId: String,
     val title: String,
@@ -23,6 +25,7 @@ data class PublicVideoSummaryDto(
     val href: String,
 )
 
+@Schema(name = "VideoPlaylistItemsResponse")
 data class PublicVideoListResponse(
     val form: YouTubeContentForm,
     val featured: PublicVideoSummaryDto?,
@@ -33,11 +36,13 @@ data class PublicVideoListResponse(
     val totalPages: Int,
 )
 
+@Schema(name = "VideoPlaylistLink")
 data class PublicVideoPlaylistLinkDto(
     val label: String,
     val href: String,
 )
 
+@Schema(name = "VideoShortformPlaylistWindow")
 data class PublicShortformPlaylistWindowDto(
     val items: List<PublicVideoSummaryDto>,
     val currentIndexInWindow: Int,
@@ -47,6 +52,7 @@ data class PublicShortformPlaylistWindowDto(
     val totalPages: Int,
 )
 
+@Schema(name = "VideoPlaylistItemDetailResponse")
 data class PublicVideoDetailResponse(
     val videoId: String,
     val title: String,
