@@ -28,6 +28,7 @@ dependencies {
     implementation("org.springframework.security:spring-security-crypto")
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:2.8.17")
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -49,6 +50,33 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+val openApiSpec by tasks.registering(Test::class) {
+    group = "documentation"
+    description = "Generates build/openapi/openapi.yaml from the Spring MVC OpenAPI test slice."
+    useJUnitPlatform()
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    filter {
+        includeTestsMatching("org.happyzion.api.common.openapi.OpenApiSpecGenerationTest")
+    }
+    outputs.file(layout.buildDirectory.file("openapi/openapi.yaml"))
+}
+
+tasks.named("test") {
+    mustRunAfter(openApiSpec)
+}
+
+tasks.register("generateOpenApiDocs") {
+    group = "documentation"
+    description = "Generates build/openapi/openapi.yaml from the Spring MVC OpenAPI test slice."
+    dependsOn(openApiSpec)
+    outputs.file(layout.buildDirectory.file("openapi/openapi.yaml"))
+}
+
+tasks.named("build") {
+    dependsOn(openApiSpec)
 }
 
 tasks.wrapper {
