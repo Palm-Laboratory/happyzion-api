@@ -40,6 +40,7 @@ DB_URL=jdbc:postgresql://localhost:5432/happyzion
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 ADMIN_SYNC_KEY=your-admin-key
+ADMIN_ACTOR_SIGNING_SECRET=your-admin-actor-signing-secret
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads
 HAPPYZION_UPLOAD_PUBLIC_BASE_URL=http://localhost:8080/upload

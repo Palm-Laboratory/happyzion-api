@@ -178,6 +178,7 @@ DB_PASSWORD=<same-as-postgres-password>
 YOUTUBE_API_KEY=replace-me
 YOUTUBE_CHANNEL_ID=replace-me
 ADMIN_SYNC_KEY=replace-me
+ADMIN_ACTOR_SIGNING_SECRET=replace-me
 CORS_ALLOWED_ORIGINS=https://www.happyzion.com,https://happyzion.com
 HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads
 HAPPYZION_UPLOAD_PUBLIC_BASE_URL=https://api.happyzion.com/upload

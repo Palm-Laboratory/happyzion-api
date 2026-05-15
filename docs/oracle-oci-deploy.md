@@ -55,6 +55,7 @@ cp .env.production.example /tmp/happyzion.env
 - `DB_PASSWORD=<same-as-postgres-password>`
 - `YOUTUBE_*`
 - `ADMIN_SYNC_KEY`
+- `ADMIN_ACTOR_SIGNING_SECRET`
 - `CORS_ALLOWED_ORIGINS=https://<web-domain>,https://www.<web-domain>`
 - `HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads`
 - `HAPPYZION_UPLOAD_PUBLIC_BASE_URL=https://<api-domain>/upload`
