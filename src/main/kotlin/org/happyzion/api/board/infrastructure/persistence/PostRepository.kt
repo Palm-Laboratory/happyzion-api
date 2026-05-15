@@ -202,6 +202,13 @@ interface PostRepository : JpaRepository<Post, Long> {
     ): Page<Post>
 
     @Modifying
-    @Query("update Post post set post.boardId = :boardId where post.menuId = :menuId")
+    @Query(
+        """
+        update Post post
+        set post.boardId = :boardId
+        where post.menuId = :menuId
+        and (post.boardId is null or post.boardId <> :boardId)
+        """,
+    )
     fun updateBoardIdByMenuId(@Param("menuId") menuId: Long, @Param("boardId") boardId: Long): Int
 }

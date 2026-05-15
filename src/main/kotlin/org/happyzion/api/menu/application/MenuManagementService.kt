@@ -52,15 +52,17 @@ class MenuManagementService(
         val existingItems = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
         val existingById = existingItems.associateBy { it.id!! }
         val seenIds = linkedSetOf<Long>()
+        val pathRecomputeRootIds = linkedSetOf<Long>()
 
         validateInputTree(items)
-        val persistedRoots = persistNodes(
+        persistNodes(
             nodes = items,
             parentId = null,
             depth = 0,
             parentType = null,
             existingById = existingById,
             seenIds = seenIds,
+            pathRecomputeRootIds = pathRecomputeRootIds,
         )
 
         val removedItems = existingItems.filter { it.id !in seenIds }
@@ -78,7 +80,7 @@ class MenuManagementService(
         }
 
         val allPersisted = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
-        recomputePaths(allPersisted)
+        recomputePaths(allPersisted, pathRecomputeRootIds)
 
         val snapshot = AdminMenuSnapshot(items = buildAdminTree())
         menuRevisionRepository.save(
@@ -107,9 +109,6 @@ class MenuManagementService(
         val items = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
         deleteBoardsScopedToMenus(collectMenuSubtreeIds(menuId, items))
         menuItemRepository.delete(menu)
-
-        val remaining = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
-        recomputePaths(remaining)
     }
 
     private fun collectMenuSubtreeIds(rootId: Long, items: List<MenuItem>): Set<Long> {
@@ -190,6 +189,7 @@ class MenuManagementService(
         parentType: MenuType?,
         existingById: Map<Long, MenuItem>,
         seenIds: MutableSet<Long>,
+        pathRecomputeRootIds: MutableSet<Long>,
     ): List<MenuItem> =
         nodes.mapIndexed { index, node ->
             val item = node.id?.let(existingById::get)
@@ -200,6 +200,7 @@ class MenuManagementService(
                 )
 
             val menuId = item.id
+            val previousParentId = item.parentId
             if (menuId != null && !seenIds.add(menuId)) {
                 throw IllegalArgumentException("동일한 메뉴가 중복 포함되어 있습니다. id=$menuId")
             }
@@ -238,16 +239,16 @@ class MenuManagementService(
                 hasChildren = node.children.isNotEmpty(),
             )
 
-            item.parentId = parentId
-            item.type = resolvedType
-            item.status = normalizeStatus(node, item, parentId)
-            item.label = normalizedLabel
-            item.slug = resolvedSlug.value
-            item.slugCustomized = resolvedSlug.customized
-            item.sortOrder = index
-            item.depth = depth
-            item.path = ""
-            item.openInNewTab = node.openInNewTab
+            val isNew = item.id == null
+            item.updateField(item.parentId, parentId) { item.parentId = it }
+            item.updateField(item.type, resolvedType) { item.type = it }
+            item.updateField(item.status, normalizeStatus(node, item, parentId)) { item.status = it }
+            item.updateField(item.label, normalizedLabel) { item.label = it }
+            item.updateField(item.slug, resolvedSlug.value) { item.slug = it }
+            item.updateField(item.slugCustomized, resolvedSlug.customized) { item.slugCustomized = it }
+            item.updateField(item.sortOrder, index) { item.sortOrder = it }
+            item.updateField(item.depth, depth) { item.depth = it }
+            item.updateField(item.openInNewTab, node.openInNewTab) { item.openInNewTab = it }
 
             when (item.type) {
                 MenuType.STATIC -> {
@@ -258,17 +259,20 @@ class MenuManagementService(
                     if (staticPageKey !in StaticPageCatalog.allKeys()) {
                         throw IllegalArgumentException("지원하지 않는 staticPageKey 입니다: $staticPageKey")
                     }
-                    item.staticPageKey = staticPageKey
-                    item.boardKey = null
-                    item.externalUrl = null
-                    item.openInNewTab = false
+                    item.updateField(item.staticPageKey, staticPageKey) { item.staticPageKey = it }
+                    item.updateField(item.boardKey, null) { item.boardKey = it }
+                    item.updateField(item.externalUrl, null) { item.externalUrl = it }
+                    item.updateField(item.openInNewTab, false) { item.openInNewTab = it }
+                    item.updateField(item.playlistContentForm, null) { item.playlistContentForm = it }
                 }
 
                 MenuType.BOARD -> {
-                    item.boardKey = node.boardKey?.trim()?.takeIf { it.isNotBlank() } ?: item.boardKey
-                    item.staticPageKey = null
-                    item.externalUrl = null
-                    item.openInNewTab = false
+                    val boardKey = node.boardKey?.trim()?.takeIf { it.isNotBlank() } ?: item.boardKey
+                    item.updateField(item.boardKey, boardKey) { item.boardKey = it }
+                    item.updateField(item.staticPageKey, null) { item.staticPageKey = it }
+                    item.updateField(item.externalUrl, null) { item.externalUrl = it }
+                    item.updateField(item.openInNewTab, false) { item.openInNewTab = it }
+                    item.updateField(item.playlistContentForm, null) { item.playlistContentForm = it }
                 }
 
                 MenuType.EXTERNAL_LINK -> {
@@ -276,36 +280,46 @@ class MenuManagementService(
                     if (externalUrl.isNullOrBlank()) {
                         throw IllegalArgumentException("외부 링크 메뉴는 URL이 필요합니다.")
                     }
-                    item.externalUrl = externalUrl
-                    item.staticPageKey = null
-                    item.boardKey = null
+                    item.updateField(item.externalUrl, externalUrl) { item.externalUrl = it }
+                    item.updateField(item.staticPageKey, null) { item.staticPageKey = it }
+                    item.updateField(item.boardKey, null) { item.boardKey = it }
+                    item.updateField(item.playlistContentForm, null) { item.playlistContentForm = it }
                 }
 
                 MenuType.FOLDER,
                 MenuType.YOUTUBE_PLAYLIST_GROUP -> {
-                    item.staticPageKey = null
-                    item.boardKey = null
-                    item.externalUrl = null
-                    item.openInNewTab = false
-                    item.playlistContentForm = null
+                    item.updateField(item.staticPageKey, null) { item.staticPageKey = it }
+                    item.updateField(item.boardKey, null) { item.boardKey = it }
+                    item.updateField(item.externalUrl, null) { item.externalUrl = it }
+                    item.updateField(item.openInNewTab, false) { item.openInNewTab = it }
+                    item.updateField(item.playlistContentForm, null) { item.playlistContentForm = it }
                 }
 
                 MenuType.YOUTUBE_PLAYLIST -> {
                     if (!item.isAuto) {
                         throw IllegalArgumentException("유튜브 재생목록 메뉴는 동기화로만 생성할 수 있습니다.")
                     }
-                    item.staticPageKey = null
-                    item.boardKey = null
-                    item.externalUrl = null
-                    item.openInNewTab = false
-                    item.playlistContentForm = node.playlistContentForm ?: item.playlistContentForm ?: YouTubeContentForm.LONGFORM
-                    item.labelCustomized = playlistSourceTitle?.let { normalizedLabel != it } ?: false
+                    item.updateField(item.staticPageKey, null) { item.staticPageKey = it }
+                    item.updateField(item.boardKey, null) { item.boardKey = it }
+                    item.updateField(item.externalUrl, null) { item.externalUrl = it }
+                    item.updateField(item.openInNewTab, false) { item.openInNewTab = it }
+                    item.updateField(
+                        item.playlistContentForm,
+                        node.playlistContentForm ?: item.playlistContentForm ?: YouTubeContentForm.LONGFORM,
+                    ) { item.playlistContentForm = it }
+                    item.updateField(
+                        item.labelCustomized,
+                        playlistSourceTitle?.let { sourceTitle -> normalizedLabel != sourceTitle } ?: false,
+                    ) { item.labelCustomized = it }
                 }
             }
 
-            val saved = menuItemRepository.save(item)
+            val saved = if (isNew) menuItemRepository.save(item) else item
             if (saved.id != null) {
                 seenIds.add(saved.id)
+                if (isNew || previousParentId != parentId) {
+                    pathRecomputeRootIds.add(saved.id)
+                }
             }
             if (saved.type == MenuType.BOARD) {
                 ensureMenuScopedBoard(saved, node.boardType)
@@ -317,6 +331,7 @@ class MenuManagementService(
                 parentType = saved.type,
                 existingById = existingById + (saved.id!! to saved),
                 seenIds = seenIds,
+                pathRecomputeRootIds = pathRecomputeRootIds,
             )
             saved
         }
@@ -392,23 +407,41 @@ class MenuManagementService(
         }
     }
 
-    private fun recomputePaths(items: List<MenuItem>) {
-        val itemsByParent = items.groupBy { it.parentId }
-
-        fun visit(parentId: Long?, parentPath: String, depth: Int) {
-            itemsByParent[parentId]
-                .orEmpty()
-                .sortedWith(compareBy<MenuItem> { it.sortOrder }.thenBy { it.id })
-                .forEach { item ->
-                    val itemId = item.id ?: return@forEach
-                    item.depth = depth
-                    item.path = "$parentPath$itemId/"
-                    menuItemRepository.save(item)
-                    visit(itemId, item.path, depth + 1)
-                }
+    private fun recomputePaths(items: List<MenuItem>, rootIds: Set<Long>) {
+        if (rootIds.isEmpty()) {
+            return
         }
 
-        visit(parentId = null, parentPath = "/", depth = 0)
+        val itemsById = items.associateBy { it.id!! }
+        val itemsByParent = items.groupBy { it.parentId }
+        val topLevelRootIds = rootIds.filter { rootId ->
+            generateSequence(itemsById[rootId]?.parentId) { parentId -> itemsById[parentId]?.parentId }
+                .none { parentId -> parentId in rootIds }
+        }
+
+        fun visit(item: MenuItem, parentPath: String, depth: Int) {
+            val itemId = item.id ?: return
+            val nextPath = "$parentPath$itemId/"
+            item.updateField(item.depth, depth) { item.depth = it }
+            item.updateField(item.path, nextPath) { item.path = it }
+
+            itemsByParent[itemId]
+                .orEmpty()
+                .sortedWith(compareBy<MenuItem> { it.sortOrder }.thenBy { it.id })
+                .forEach { child -> visit(child, item.path, depth + 1) }
+        }
+
+        topLevelRootIds
+            .mapNotNull(itemsById::get)
+            .sortedWith(compareBy<MenuItem> { it.depth }.thenBy { it.sortOrder }.thenBy { it.id })
+            .forEach { root ->
+                val parent = root.parentId?.let(itemsById::get)
+                visit(
+                    item = root,
+                    parentPath = parent?.path ?: "/",
+                    depth = parent?.let { it.depth + 1 } ?: 0,
+                )
+            }
     }
 
     private fun buildAdminTree(): List<MenuTreeNode> {
@@ -467,19 +500,19 @@ class MenuManagementService(
             type = boardType,
             description = null,
         )
+        val isNewBoard = board.id == null
 
-        board.slug = buildBoardSlug(menu, currentBoardId = board.id)
-        board.menuId = menuId
-        board.title = menu.label
-        board.type = boardType
-        board.description = null
+        updateField(board.slug, buildBoardSlug(menu, currentBoardId = board.id)) { board.slug = it }
+        updateField(board.menuId, menuId) { board.menuId = it }
+        updateField(board.title, menu.label) { board.title = it }
+        updateField(board.type, boardType) { board.type = it }
+        updateField(board.description, null) { board.description = it }
 
-        val savedBoard = boardRepository.save(board)
+        val savedBoard = if (isNewBoard) boardRepository.save(board) else board
         val savedBoardId = savedBoard.id ?: throw IllegalStateException("게시판 id가 없습니다.")
 
         if (menu.boardKey != savedBoard.slug) {
             menu.boardKey = savedBoard.slug
-            menuItemRepository.save(menu)
         }
         postRepository.updateBoardIdByMenuId(menuId = menuId, boardId = savedBoardId)
     }
@@ -594,6 +627,20 @@ class MenuManagementService(
 
         if (!actor.active) {
             throw ForbiddenException("비활성화된 계정은 메뉴를 관리할 수 없습니다.")
+        }
+    }
+
+    private inline fun <T> MenuItem.updateField(current: T, next: T, apply: (T) -> Unit) {
+        updateFieldValue(current, next, apply)
+    }
+
+    private inline fun <T> updateField(current: T, next: T, apply: (T) -> Unit) {
+        updateFieldValue(current, next, apply)
+    }
+
+    private inline fun <T> updateFieldValue(current: T, next: T, apply: (T) -> Unit) {
+        if (current != next) {
+            apply(next)
         }
     }
 }
