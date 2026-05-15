@@ -1,5 +1,6 @@
 package org.happyzion.api.menu.application
 
+import org.happyzion.api.common.config.PublicMenuCacheNames
 import org.happyzion.api.common.error.NotFoundException
 import org.happyzion.api.menu.domain.MenuItem
 import org.happyzion.api.menu.domain.MenuStatus
@@ -8,6 +9,7 @@ import org.happyzion.api.menu.infrastructure.persistence.MenuItemRepository
 import org.happyzion.api.youtube.application.PlaylistDisplayableVideoCountResolver
 import org.happyzion.api.youtube.domain.YouTubeContentForm
 import org.happyzion.api.youtube.infrastructure.persistence.YouTubePlaylistRepository
+import org.springframework.cache.annotation.Cacheable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,6 +23,7 @@ class PublicMenuService(
     private val menuOrder = compareBy<MenuItem> { it.sortOrder }.thenBy { it.id }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = [PublicMenuCacheNames.NAVIGATION])
     fun getNavigation(): PublicNavigationResponse {
         val publishedItems = menuItemRepository.findAllByStatusOrderBySortOrderAscIdAsc(MenuStatus.PUBLISHED)
         val childrenByParent = publishedItems.groupBy { it.parentId }
@@ -82,6 +85,7 @@ class PublicMenuService(
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = [PublicMenuCacheNames.RESOLVE], key = "#path")
     fun resolveMenuPath(path: String): PublicResolvedMenuPage {
         val publishedItems = menuItemRepository.findAllByStatusOrderBySortOrderAscIdAsc(MenuStatus.PUBLISHED)
         val childrenByParent = publishedItems.groupBy { it.parentId }

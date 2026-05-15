@@ -2,6 +2,7 @@ package org.happyzion.api.youtube.application
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.happyzion.api.common.config.EvictPublicMenuCache
 import org.happyzion.api.common.config.YouTubeProperties
 import org.happyzion.api.menu.application.AdminYouTubePlaylistSummary
 import org.happyzion.api.menu.application.MenuSlugSupport
@@ -45,6 +46,7 @@ class YouTubeSyncService(
         .build()
 
     @Transactional
+    @EvictPublicMenuCache
     fun sync(): YouTubeSyncSummary {
         require(isConfigured()) { "YOUTUBE_API_KEY와 YOUTUBE_CHANNEL_ID를 먼저 설정해 주세요." }
 

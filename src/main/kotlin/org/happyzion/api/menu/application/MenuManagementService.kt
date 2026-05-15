@@ -6,6 +6,7 @@ import org.happyzion.api.board.domain.Board
 import org.happyzion.api.board.domain.BoardType
 import org.happyzion.api.board.infrastructure.persistence.BoardRepository
 import org.happyzion.api.board.infrastructure.persistence.PostRepository
+import org.happyzion.api.common.config.EvictPublicMenuCache
 import org.happyzion.api.common.error.ForbiddenException
 import org.happyzion.api.common.error.NotFoundException
 import org.happyzion.api.menu.domain.MenuItem
@@ -44,6 +45,7 @@ class MenuManagementService(
     }
 
     @Transactional
+    @EvictPublicMenuCache
     fun replaceTree(actorId: Long, items: List<MenuTreeNodeInput>): AdminMenuSnapshot {
         requireActiveAdmin(actorId)
 
@@ -91,6 +93,7 @@ class MenuManagementService(
     }
 
     @Transactional
+    @EvictPublicMenuCache
     fun deleteMenuItem(actorId: Long, menuId: Long) {
         requireActiveAdmin(actorId)
 
