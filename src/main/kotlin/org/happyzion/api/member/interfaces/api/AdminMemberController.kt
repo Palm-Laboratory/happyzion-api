@@ -1,7 +1,7 @@
 package org.happyzion.api.member.interfaces.api
 
 import jakarta.validation.Valid
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.member.application.AdminMemberAttendanceRecord
 import org.happyzion.api.member.application.AdminMemberDetail
 import org.happyzion.api.member.application.AdminMemberEventItem
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDate
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/members")
 class AdminMemberController(

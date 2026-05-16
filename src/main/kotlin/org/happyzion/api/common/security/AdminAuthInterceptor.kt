@@ -8,7 +8,7 @@ import org.springframework.web.method.HandlerMethod
 import org.springframework.web.servlet.HandlerInterceptor
 
 @Component
-class AdminKeyInterceptor(
+class AdminAuthInterceptor(
     private val adminJwtService: AdminJwtService,
 ) : HandlerInterceptor {
 
@@ -31,8 +31,8 @@ class AdminKeyInterceptor(
     }
 
     private fun requiresAdminAuth(handler: HandlerMethod): Boolean =
-        handler.getMethodAnnotation(AdminKeyRequired::class.java) != null ||
-            handler.beanType.getAnnotation(AdminKeyRequired::class.java) != null
+        handler.getMethodAnnotation(AdminAuthRequired::class.java) != null ||
+            handler.beanType.getAnnotation(AdminAuthRequired::class.java) != null
 
     private fun extractBearerToken(request: HttpServletRequest): String? {
         val header = request.getHeader("Authorization") ?: return null

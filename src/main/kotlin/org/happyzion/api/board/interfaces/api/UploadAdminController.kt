@@ -4,7 +4,7 @@ import jakarta.validation.Valid
 import org.happyzion.api.board.application.UploadAssetService
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -21,7 +21,7 @@ class UploadAdminController(
     private val uploadTokenService: UploadTokenService,
     private val uploadAssetService: UploadAssetService,
 ) {
-    @AdminKeyRequired
+    @AdminAuthRequired
     @PostMapping("/token")
     fun issueToken(
         @RequestAttribute("adminAccountId") actorId: Long,

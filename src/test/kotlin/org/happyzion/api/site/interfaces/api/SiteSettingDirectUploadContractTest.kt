@@ -11,7 +11,7 @@ import java.nio.file.Path
 class SiteSettingDirectUploadContractTest {
 
     @Test
-    fun `admin main video upload endpoint authenticates with upload token instead of admin key`() {
+    fun `admin main video upload endpoint authenticates with upload token instead of admin auth`() {
         val uploadMethod = SiteSettingController::class.java.declaredMethods
             .firstOrNull { method ->
                 method.getAnnotation(PostMapping::class.java)
@@ -31,8 +31,8 @@ class SiteSettingDirectUploadContractTest {
             .describedAs("Direct browser uploads must authenticate with a one-time upload token.")
             .contains("X-Upload-Token")
         assertThat(headerNames)
-            .describedAs("Main-video upload POST must not accept the server admin sync key from browsers.")
-            .doesNotContain("X-Admin-Key")
+            .describedAs("Main-video upload POST must not accept bearer admin auth from browsers.")
+            .doesNotContain("Authorization")
     }
 
     @Test

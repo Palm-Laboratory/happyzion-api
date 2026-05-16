@@ -1,6 +1,6 @@
 package org.happyzion.api.video.interfaces.api
 
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.video.application.VideoService
 import org.happyzion.api.video.interfaces.dto.AdminVideoListResponse
 import org.happyzion.api.video.interfaces.dto.UpdateVideoMetaRequest
@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/videos")
 class VideoAdminController(

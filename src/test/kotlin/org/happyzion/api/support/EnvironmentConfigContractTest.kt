@@ -18,8 +18,8 @@ class EnvironmentConfigContractTest {
         assertThat(content).contains("DB_PASSWORD=")
         assertThat(content).contains("YOUTUBE_API_KEY=")
         assertThat(content).contains("YOUTUBE_CHANNEL_ID=")
-        assertThat(content).contains("ADMIN_SYNC_KEY=")
-        assertThat(content).contains("ADMIN_ACTOR_SIGNING_SECRET=")
+        assertThat(content).contains("ADMIN_JWT_SECRET=")
+        assertThat(content).doesNotContain("ADMIN_SYNC_KEY=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_USERNAME=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME=")
@@ -41,8 +41,8 @@ class EnvironmentConfigContractTest {
         assertThat(content).contains("DB_PASSWORD=")
         assertThat(content).contains("YOUTUBE_API_KEY=")
         assertThat(content).contains("YOUTUBE_CHANNEL_ID=")
-        assertThat(content).contains("ADMIN_SYNC_KEY=")
-        assertThat(content).contains("ADMIN_ACTOR_SIGNING_SECRET=")
+        assertThat(content).contains("ADMIN_JWT_SECRET=")
+        assertThat(content).doesNotContain("ADMIN_SYNC_KEY=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_USERNAME=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME=")
@@ -59,12 +59,23 @@ class EnvironmentConfigContractTest {
         assertThat(content).contains("DB_PASSWORD: \${DB_PASSWORD}")
         assertThat(content).contains("YOUTUBE_API_KEY: \${YOUTUBE_API_KEY}")
         assertThat(content).contains("YOUTUBE_CHANNEL_ID: \${YOUTUBE_CHANNEL_ID}")
-        assertThat(content).contains("ADMIN_SYNC_KEY: \${ADMIN_SYNC_KEY}")
-        assertThat(content).contains("ADMIN_ACTOR_SIGNING_SECRET: \${ADMIN_ACTOR_SIGNING_SECRET}")
+        assertThat(content).contains("ADMIN_JWT_SECRET: \${ADMIN_JWT_SECRET}")
+        assertThat(content).doesNotContain("ADMIN_SYNC_KEY: \${ADMIN_SYNC_KEY}")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_USERNAME: \${ADMIN_BOOTSTRAP_USERNAME}")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD: \${ADMIN_BOOTSTRAP_PASSWORD}")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME: \${ADMIN_BOOTSTRAP_DISPLAY_NAME}")
         assertThat(content).contains("CORS_ALLOWED_ORIGINS: \${CORS_ALLOWED_ORIGINS}")
+    }
+
+    @Test
+    fun `production profile should not expose generated api docs`() {
+        val prodConfig = Path.of("src/main/resources/application-prod.yml")
+        val content = Files.readString(prodConfig)
+
+        assertThat(content).contains("springdoc:")
+        assertThat(content).contains("api-docs:")
+        assertThat(content).contains("swagger-ui:")
+        assertThat(content).contains("enabled: false")
     }
 
     @Test

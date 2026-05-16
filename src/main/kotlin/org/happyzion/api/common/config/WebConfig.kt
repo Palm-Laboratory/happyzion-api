@@ -1,6 +1,6 @@
 package org.happyzion.api.common.config
 
-import org.happyzion.api.common.security.AdminKeyInterceptor
+import org.happyzion.api.common.security.AdminAuthInterceptor
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
@@ -9,11 +9,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @Configuration
 class WebConfig(
     private val corsProperties: CorsProperties,
-    private val adminKeyInterceptor: AdminKeyInterceptor,
+    private val adminAuthInterceptor: AdminAuthInterceptor,
 ) : WebMvcConfigurer {
 
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(adminKeyInterceptor)
+        registry.addInterceptor(adminAuthInterceptor)
             .addPathPatterns("/api/v1/admin/**")
     }
 

@@ -2,7 +2,7 @@ package org.happyzion.api.site.interfaces.api
 
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.site.application.SiteSettingService
 import org.happyzion.api.site.interfaces.dto.toDto
 import org.springframework.http.MediaType
@@ -22,7 +22,7 @@ class SiteSettingController(
     fun getPublicMainVideo() =
         siteSettingService.getMainVideoSetting().toDto()
 
-    @AdminKeyRequired
+    @AdminAuthRequired
     @GetMapping("/api/v1/admin/site/main-video")
     fun getAdminMainVideo() =
         siteSettingService.getMainVideoSetting().toDto()

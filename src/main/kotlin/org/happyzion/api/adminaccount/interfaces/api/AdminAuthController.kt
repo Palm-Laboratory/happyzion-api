@@ -5,7 +5,7 @@ import org.happyzion.api.adminaccount.application.AdminAccountAuthService
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountAuthenticateRequest
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAuthenticatedAccountDto
 import org.happyzion.api.adminaccount.interfaces.dto.toDto
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -27,7 +27,7 @@ class AdminAuthController(
             password = request.password,
         ).toDto()
 
-    @AdminKeyRequired
+    @AdminAuthRequired
     @GetMapping("/me")
     fun me(
         @RequestAttribute("adminAccountId") actorId: Long,

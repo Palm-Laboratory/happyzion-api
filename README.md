@@ -2,7 +2,7 @@
 
 Happy Zion 웹사이트용 Kotlin + Spring Boot API 서버입니다.
 
-이 프로젝트는 기존 교회 API를 기준으로 분리한 독립 백엔드입니다. 현재 목표는 공통 CMS가 아니라 Happy Zion 전용 데이터베이스, 업로드 저장소, 관리자 키, YouTube 설정을 가진 별도 API를 운영하는 것입니다.
+이 프로젝트는 기존 교회 API를 기준으로 분리한 독립 백엔드입니다. 현재 목표는 공통 CMS가 아니라 Happy Zion 전용 데이터베이스, 업로드 저장소, 관리자 JWT 인증, YouTube 설정을 가진 별도 API를 운영하는 것입니다.
 
 ## 현재 범위
 
@@ -39,8 +39,7 @@ docker compose -f docker-compose.local.yml up -d
 DB_URL=jdbc:postgresql://localhost:5432/happyzion
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
-ADMIN_SYNC_KEY=your-admin-key
-ADMIN_ACTOR_SIGNING_SECRET=your-admin-actor-signing-secret
+ADMIN_JWT_SECRET=your-admin-jwt-secret-at-least-32-bytes
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads
 HAPPYZION_UPLOAD_PUBLIC_BASE_URL=http://localhost:8080/upload

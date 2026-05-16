@@ -9,7 +9,7 @@ import org.happyzion.api.board.application.BoardAdminService
 import org.happyzion.api.board.application.BoardPostSaveCommand
 import org.happyzion.api.board.domain.BoardType
 import org.happyzion.api.board.domain.PostAssetKind
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/boards")
 class BoardAdminController(

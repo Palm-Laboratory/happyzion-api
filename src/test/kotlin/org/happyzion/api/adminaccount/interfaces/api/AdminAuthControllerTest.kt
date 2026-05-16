@@ -24,6 +24,7 @@ class AdminAuthControllerTest {
                 username = "super-admin",
                 displayName = "슈퍼 관리자",
                 role = AdminAccountRole.SUPER_ADMIN,
+                token = "token",
             )
         )
 
@@ -56,6 +57,7 @@ class AdminAuthControllerTest {
                 username = "happyzion.admin",
                 displayName = "총관리자",
                 role = AdminAccountRole.SUPER_ADMIN,
+                token = "token",
             )
         )
 

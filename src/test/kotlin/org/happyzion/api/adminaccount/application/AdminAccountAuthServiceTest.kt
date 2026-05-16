@@ -4,6 +4,7 @@ import org.happyzion.api.adminaccount.domain.AdminAccount
 import org.happyzion.api.adminaccount.domain.AdminAccountRole
 import org.happyzion.api.adminaccount.infrastructure.persistence.AdminAccountRepository
 import org.happyzion.api.common.error.UnauthorizedException
+import org.happyzion.api.common.security.AdminJwtService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -15,9 +16,11 @@ class AdminAccountAuthServiceTest {
 
     private val adminAccountRepository: AdminAccountRepository = mock()
     private val passwordEncoder = BCryptPasswordEncoder()
+    private val adminJwtService: AdminJwtService = mock()
     private val service = AdminAccountAuthService(
         adminAccountRepository = adminAccountRepository,
         passwordEncoder = passwordEncoder,
+        adminJwtService = adminJwtService,
     )
 
     @Test
@@ -31,6 +34,7 @@ class AdminAccountAuthServiceTest {
                 role = AdminAccountRole.SUPER_ADMIN,
             )
         )
+        whenever(adminJwtService.issueToken(1L, AdminAccountRole.SUPER_ADMIN)).thenReturn("token")
 
         val result = service.authenticate("  SUPER-ADMIN  ", "password-123")
 
@@ -69,6 +73,7 @@ class AdminAccountAuthServiceTest {
                 role = AdminAccountRole.SUPER_ADMIN,
             )
         )
+        whenever(adminJwtService.issueToken(1L, AdminAccountRole.SUPER_ADMIN)).thenReturn("token")
 
         service.authenticate("super-admin", "password-123")
 
@@ -108,6 +113,7 @@ class AdminAccountAuthServiceTest {
                 )
             )
         )
+        whenever(adminJwtService.issueToken(1L, AdminAccountRole.SUPER_ADMIN)).thenReturn("token")
 
         val result = service.getCurrentAccount(1L)
 

@@ -7,7 +7,7 @@ import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountCreateRequest
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountUpdateRequest
 import org.happyzion.api.adminaccount.interfaces.dto.AdminAccountsResponse
 import org.happyzion.api.adminaccount.interfaces.dto.toDto
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/accounts")
 class AdminAccountController(

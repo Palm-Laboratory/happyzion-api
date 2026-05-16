@@ -4,7 +4,7 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.mission.application.MissionEntryCommand
 import org.happyzion.api.mission.application.MissionHistoryService
 import org.happyzion.api.mission.application.MissionYearCreateCommand
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/mission-history")
 class MissionHistoryAdminController(

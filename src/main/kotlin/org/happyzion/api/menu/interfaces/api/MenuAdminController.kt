@@ -1,6 +1,6 @@
 package org.happyzion.api.menu.interfaces.api
 
-import org.happyzion.api.common.security.AdminKeyRequired
+import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.menu.application.MenuManagementService
 import org.happyzion.api.menu.application.StaticPageCatalog
 import org.happyzion.api.menu.interfaces.dto.AdminStaticPagesResponse
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
-@AdminKeyRequired
+@AdminAuthRequired
 @RestController
 @RequestMapping("/api/v1/admin/menu")
 class MenuAdminController(
