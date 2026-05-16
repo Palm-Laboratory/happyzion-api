@@ -24,7 +24,8 @@ class BoardSchemaContractTest {
             "V3__allow_main_video_upload_token.sql",
             "V4__create_mission_history.sql",
             "V5__seed_mission_history.sql",
-            "V6__drop_member_registry.sql",
+            "V6__add_developer_role.sql",
+            "V7__drop_member_registry.sql",
         )
     }
 
@@ -135,8 +136,8 @@ class BoardSchemaContractTest {
     }
 
     @Test
-    fun `V6 migration should drop member registry tables without rewriting V1`() {
-        val normalized = readMigration("V6__drop_member_registry.sql")
+    fun `V7 migration should drop member registry tables without rewriting V1`() {
+        val normalized = readMigration("V7__drop_member_registry.sql")
 
         assertThat(readBaselineMigration()).contains("create table member")
         assertThat(normalized).contains("drop table if exists attendance_record cascade")
