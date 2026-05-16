@@ -1,0 +1,9 @@
+drop table if exists attendance_record cascade;
+drop table if exists attendance_service_date cascade;
+drop table if exists member_event_log cascade;
+drop table if exists member_tag cascade;
+drop table if exists member_training cascade;
+drop table if exists member_service cascade;
+drop table if exists member_family cascade;
+drop table if exists member_faith cascade;
+drop table if exists member cascade;

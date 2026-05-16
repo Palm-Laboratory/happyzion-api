@@ -24,6 +24,7 @@ class BoardSchemaContractTest {
             "V3__allow_main_video_upload_token.sql",
             "V4__create_mission_history.sql",
             "V5__seed_mission_history.sql",
+            "V6__drop_member_registry.sql",
         )
     }
 
@@ -134,18 +135,19 @@ class BoardSchemaContractTest {
     }
 
     @Test
-    fun `V1 migration should include member registry tables`() {
-        val normalized = readBaselineMigration()
+    fun `V6 migration should drop member registry tables without rewriting V1`() {
+        val normalized = readMigration("V6__drop_member_registry.sql")
 
-        assertThat(normalized).contains("create table member")
-        assertThat(normalized).contains("create table member_faith")
-        assertThat(normalized).contains("create table member_family")
-        assertThat(normalized).contains("create table member_service")
-        assertThat(normalized).contains("create table member_training")
-        assertThat(normalized).contains("create table member_tag")
-        assertThat(normalized).contains("create table attendance_service_date")
-        assertThat(normalized).contains("create table attendance_record")
-        assertThat(normalized).contains("create table member_event_log")
+        assertThat(readBaselineMigration()).contains("create table member")
+        assertThat(normalized).contains("drop table if exists attendance_record cascade")
+        assertThat(normalized).contains("drop table if exists attendance_service_date cascade")
+        assertThat(normalized).contains("drop table if exists member_event_log cascade")
+        assertThat(normalized).contains("drop table if exists member_tag cascade")
+        assertThat(normalized).contains("drop table if exists member_training cascade")
+        assertThat(normalized).contains("drop table if exists member_service cascade")
+        assertThat(normalized).contains("drop table if exists member_family cascade")
+        assertThat(normalized).contains("drop table if exists member_faith cascade")
+        assertThat(normalized).contains("drop table if exists member cascade")
     }
 
     @Test

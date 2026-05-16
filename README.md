@@ -11,7 +11,6 @@ Happy Zion 웹사이트용 Kotlin + Spring Boot API 서버입니다.
 - 공개 메뉴 API
 - YouTube 영상 동기화와 영상 메타 API
 - 게시판/게시글/첨부 업로드 API
-- 교인/출석 관리 API
 - Flyway 마이그레이션
 
 ## 로컬 준비

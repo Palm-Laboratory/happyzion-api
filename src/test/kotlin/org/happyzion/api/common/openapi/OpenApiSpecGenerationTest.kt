@@ -13,8 +13,6 @@ import org.happyzion.api.board.interfaces.api.BoardAdminController
 import org.happyzion.api.board.interfaces.api.PublicBoardController
 import org.happyzion.api.board.interfaces.api.UploadAdminController
 import org.happyzion.api.common.config.OpenApiConfig
-import org.happyzion.api.member.application.AdminMemberService
-import org.happyzion.api.member.interfaces.api.AdminMemberController
 import org.happyzion.api.menu.application.MenuManagementService
 import org.happyzion.api.menu.application.PublicMenuService
 import org.happyzion.api.menu.interfaces.api.MenuAdminController
@@ -64,9 +62,6 @@ class OpenApiSpecGenerationTest {
     // ── video ──────────────────────────────────────────────────────────────────
     @MockitoBean private lateinit var videoService: VideoService
 
-    // ── member ─────────────────────────────────────────────────────────────────
-    @MockitoBean private lateinit var adminMemberService: AdminMemberService
-
     // ── admin account ──────────────────────────────────────────────────────────
     @MockitoBean private lateinit var adminAccountManagementService: AdminAccountManagementService
     @MockitoBean private lateinit var adminAccountAuthService: AdminAccountAuthService
@@ -94,7 +89,6 @@ class OpenApiSpecGenerationTest {
             .contains("/api/v1/admin/boards/")
             .contains("/api/v1/admin/menu:")
             .contains("/api/v1/admin/videos:")
-            .contains("/api/v1/admin/members:")
             .contains("/api/v1/admin/accounts:")
             .contains("/api/v1/admin/auth/login:")
             .contains("/api/v1/admin/youtube/playlists:")
@@ -102,6 +96,7 @@ class OpenApiSpecGenerationTest {
             .contains("/api/v1/admin/mission-history:")
             .contains("/api/v1/public/site/main-video:")
             .contains("/api/v1/admin/uploads/token:")
+            .doesNotContain("/api/v1/admin/members:")
 
         val outputPath = Path.of("build/openapi/openapi.yaml")
         Files.createDirectories(outputPath.parent)
@@ -125,7 +120,6 @@ class OpenApiSpecGenerationTest {
     UploadAdminController::class,
     PublicVideoController::class,
     VideoAdminController::class,
-    AdminMemberController::class,
     AdminAccountController::class,
     AdminAuthController::class,
     YouTubeAdminController::class,
