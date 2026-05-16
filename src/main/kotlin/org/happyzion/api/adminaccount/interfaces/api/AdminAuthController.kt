@@ -9,7 +9,7 @@ import org.happyzion.api.common.security.AdminKeyRequired
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -30,7 +30,7 @@ class AdminAuthController(
     @AdminKeyRequired
     @GetMapping("/me")
     fun me(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
     ): AdminAuthenticatedAccountDto =
         adminAccountAuthService.getCurrentAccount(actorId).toDto()
 }

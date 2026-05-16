@@ -8,6 +8,7 @@ data class AuthenticatedAdminAccount(
     val username: String,
     val displayName: String,
     val role: AdminAccountRole,
+    val token: String,
 )
 
 data class AdminAccountSummary(

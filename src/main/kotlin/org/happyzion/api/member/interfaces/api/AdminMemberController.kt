@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -43,7 +43,7 @@ class AdminMemberController(
 ) {
     @GetMapping
     fun listMembers(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @RequestParam(required = false) query: String? = null,
         @RequestParam(required = false) status: MemberStatus? = null,
         @RequestParam(required = false) stage: FaithStage? = null,
@@ -57,21 +57,21 @@ class AdminMemberController(
 
     @GetMapping("/{id}")
     fun getMember(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
     ): AdminMemberDetailResponse =
         adminMemberService.getMemberDetail(actorId, id).toResponse()
 
     @PostMapping
     fun createMember(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @Valid @RequestBody request: AdminMemberSaveRequest,
     ): AdminMemberDetailResponse =
         adminMemberService.createMember(actorId, request.toCreateCommand()).toResponse()
 
     @PatchMapping("/{id}")
     fun updateMember(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
         @Valid @RequestBody request: AdminMemberSaveRequest,
     ): AdminMemberDetailResponse =
@@ -79,7 +79,7 @@ class AdminMemberController(
 
     @GetMapping("/{id}/attendance")
     fun getAttendance(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
         @RequestParam(required = false) from: LocalDate? = null,
         @RequestParam(required = false) to: LocalDate? = null,

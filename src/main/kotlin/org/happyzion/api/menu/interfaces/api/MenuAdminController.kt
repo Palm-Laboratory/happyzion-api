@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -24,23 +24,21 @@ class MenuAdminController(
 ) {
     @GetMapping
     fun getMenuTree(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
     ) = menuManagementService.getAdminSnapshot(actorId).toDto()
 
     @GetMapping("/static-pages")
-    fun getStaticPages(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
-    ) = AdminStaticPagesResponse(pages = StaticPageCatalog.allRoutes().map { it.toDto() })
+    fun getStaticPages() = AdminStaticPagesResponse(pages = StaticPageCatalog.allRoutes().map { it.toDto() })
 
     @PutMapping("/tree")
     fun replaceTree(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @RequestBody request: ReplaceMenuTreeRequest,
     ) = menuManagementService.replaceTree(actorId, request.toCommand()).toDto()
 
     @DeleteMapping("/{id}")
     fun deleteMenu(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
     ) {
         menuManagementService.deleteMenuItem(actorId, id)

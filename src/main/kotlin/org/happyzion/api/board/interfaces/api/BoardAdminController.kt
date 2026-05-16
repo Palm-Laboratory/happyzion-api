@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -30,7 +30,7 @@ class BoardAdminController(
 ) {
     @GetMapping
     fun listBoards(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
     ): BoardAdminListBoardsResponse {
         return BoardAdminListBoardsResponse(
             boards = boardAdminService.listBoards(actorId).map { it.toResponse() },
@@ -39,7 +39,7 @@ class BoardAdminController(
 
     @GetMapping("/{slug}/posts")
     fun listPosts(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable slug: String,
         @RequestParam(required = false) menuId: Long? = null,
         @RequestParam(required = false, defaultValue = "0") page: Int = 0,
@@ -55,7 +55,7 @@ class BoardAdminController(
 
     @GetMapping("/{slug}/posts/{postId}")
     fun getPost(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestParam(required = false) menuId: Long? = null,
@@ -65,7 +65,7 @@ class BoardAdminController(
 
     @PostMapping("/{slug}/posts")
     fun createPost(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable slug: String,
         @RequestBody request: BoardPostSaveRequest,
     ): BoardAdminPostSaveResponse {
@@ -78,7 +78,7 @@ class BoardAdminController(
 
     @PutMapping("/{slug}/posts/{postId}")
     fun updatePost(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestBody request: BoardPostSaveRequest,
@@ -93,7 +93,7 @@ class BoardAdminController(
 
     @DeleteMapping("/{slug}/posts/{postId}")
     fun deletePost(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable slug: String,
         @PathVariable postId: Long,
         @RequestParam(required = false) menuId: Long? = null,

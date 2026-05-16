@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.OffsetDateTime
@@ -30,27 +30,27 @@ class MissionHistoryAdminController(
 ) {
     @GetMapping
     fun listYears(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
     ): MissionAdminListYearsResponse =
         MissionAdminListYearsResponse(years = missionHistoryService.listAdminYears(actorId).map { it.toResponse() })
 
     @GetMapping("/{yearId}")
     fun getYear(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable yearId: Long,
     ): MissionAdminYearDetailResponse =
         missionHistoryService.getAdminYear(actorId, yearId).toDetailResponse()
 
     @PostMapping
     fun createYear(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @Valid @RequestBody request: MissionYearCreateRequest,
     ): MissionAdminYearDetailResponse =
         missionHistoryService.createYear(actorId, request.toCommand()).toDetailResponse()
 
     @PutMapping("/{yearId}")
     fun updateYear(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable yearId: Long,
         @Valid @RequestBody request: MissionYearUpdateRequest,
     ): MissionAdminYearDetailResponse =
@@ -58,7 +58,7 @@ class MissionHistoryAdminController(
 
     @DeleteMapping("/{yearId}")
     fun deleteYear(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable yearId: Long,
     ) {
         missionHistoryService.deleteYear(actorId, yearId)

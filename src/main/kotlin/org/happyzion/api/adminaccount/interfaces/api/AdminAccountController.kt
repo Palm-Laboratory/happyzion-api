@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -26,13 +26,13 @@ class AdminAccountController(
 ) {
     @GetMapping("/{id}")
     fun getAccount(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
     ) = adminAccountManagementService.getAccount(actorId, id).toDto()
 
     @GetMapping
     fun getAccounts(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
     ): AdminAccountsResponse =
         AdminAccountsResponse(
             accounts = adminAccountManagementService.getAccounts(actorId).map { it.toDto() },
@@ -40,7 +40,7 @@ class AdminAccountController(
 
     @PostMapping
     fun createAccount(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @Valid @RequestBody request: AdminAccountCreateRequest,
     ) = adminAccountManagementService.createAdminAccount(
         actorId = actorId,
@@ -53,7 +53,7 @@ class AdminAccountController(
 
     @PutMapping("/{id}")
     fun updateAccount(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
         @Valid @RequestBody request: AdminAccountUpdateRequest,
     ) = adminAccountManagementService.updateAdminAccount(
@@ -70,7 +70,7 @@ class AdminAccountController(
 
     @DeleteMapping("/{id}")
     fun deleteAccount(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @PathVariable id: Long,
     ) {
         adminAccountManagementService.deleteAdminAccount(actorId, id)

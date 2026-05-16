@@ -8,6 +8,7 @@ import org.happyzion.api.common.security.AdminKeyRequired
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestAttribute
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestMapping
@@ -23,7 +24,7 @@ class UploadAdminController(
     @AdminKeyRequired
     @PostMapping("/token")
     fun issueToken(
-        @RequestHeader("X-Admin-Actor-Id") actorId: Long,
+        @RequestAttribute("adminAccountId") actorId: Long,
         @Valid @RequestBody request: UploadTokenIssueRequest,
     ): UploadTokenIssueResponse {
         val result = uploadTokenService.issueToken(

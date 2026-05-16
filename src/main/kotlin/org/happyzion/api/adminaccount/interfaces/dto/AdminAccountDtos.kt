@@ -51,6 +51,7 @@ data class AdminAuthenticatedAccountDto(
     val username: String,
     val displayName: String,
     val role: AdminAccountRole,
+    val token: String,
 )
 
 data class AdminAccountsResponse(
@@ -63,6 +64,7 @@ fun AuthenticatedAdminAccount.toDto(): AdminAuthenticatedAccountDto =
         username = username,
         displayName = displayName,
         role = role,
+        token = token,
     )
 
 fun AdminAccountSummary.toDto(): AdminAccountDto =
