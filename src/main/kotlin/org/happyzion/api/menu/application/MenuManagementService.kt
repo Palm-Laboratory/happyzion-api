@@ -38,6 +38,11 @@ class MenuManagementService(
         val customized: Boolean,
     )
 
+    private companion object {
+        const val STATIC_MENU_DEVELOPER_OWNED_MESSAGE =
+            "정적 페이지 메뉴는 코드에 등록된 컴포넌트와 1:1로 묶여 있어 어드민에서 추가·삭제·연결 변경을 할 수 없습니다. 개발팀에 문의해 주세요."
+    }
+
     @Transactional(readOnly = true)
     fun getAdminSnapshot(actorId: Long): AdminMenuSnapshot {
         requireActiveAdmin(actorId)
@@ -68,6 +73,9 @@ class MenuManagementService(
         val removedItems = existingItems.filter { it.id !in seenIds }
         if (removedItems.any { it.isAuto }) {
             throw IllegalArgumentException("자동 생성 메뉴는 트리에서 제거할 수 없습니다.")
+        }
+        if (removedItems.any { it.type == MenuType.STATIC }) {
+            throw IllegalArgumentException(STATIC_MENU_DEVELOPER_OWNED_MESSAGE)
         }
 
         val removedIds = removedItems.mapNotNull { it.id }.toSet()
@@ -104,6 +112,9 @@ class MenuManagementService(
 
         if (menu.isAuto) {
             throw IllegalArgumentException("자동 생성 메뉴는 수동 삭제할 수 없습니다.")
+        }
+        if (menu.type == MenuType.STATIC) {
+            throw IllegalArgumentException(STATIC_MENU_DEVELOPER_OWNED_MESSAGE)
         }
 
         val items = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
@@ -222,12 +233,19 @@ class MenuManagementService(
                 null
             }
 
-            val resolvedSlug = resolveEffectiveSlug(
-                node = node,
-                item = item,
-                parentId = parentId,
-                autoSlugBaseLabel = playlistSourceTitle,
-            )
+            val resolvedSlug = if (item.id != null && item.type == MenuType.STATIC) {
+                if (item.parentId != parentId) {
+                    ensureSlugAvailable(item.slug, item.id, parentId)
+                }
+                ResolvedSlug(value = item.slug, customized = item.slugCustomized)
+            } else {
+                resolveEffectiveSlug(
+                    node = node,
+                    item = item,
+                    parentId = parentId,
+                    autoSlugBaseLabel = playlistSourceTitle,
+                )
+            }
 
             val resolvedType = if (item.isAuto) item.type else node.type
             validatePlacement(
@@ -252,14 +270,13 @@ class MenuManagementService(
 
             when (item.type) {
                 MenuType.STATIC -> {
-                    val staticPageKey = node.staticPageKey?.trim()
-                    if (staticPageKey.isNullOrBlank()) {
-                        throw IllegalArgumentException("정적 페이지 메뉴는 staticPageKey가 필요합니다.")
+                    if (isNew) {
+                        throw IllegalArgumentException(STATIC_MENU_DEVELOPER_OWNED_MESSAGE)
                     }
-                    if (staticPageKey !in StaticPageCatalog.allKeys()) {
-                        throw IllegalArgumentException("지원하지 않는 staticPageKey 입니다: $staticPageKey")
+                    val incomingKey = node.staticPageKey?.trim()
+                    if (!incomingKey.isNullOrBlank() && incomingKey != item.staticPageKey) {
+                        throw IllegalArgumentException(STATIC_MENU_DEVELOPER_OWNED_MESSAGE)
                     }
-                    item.updateField(item.staticPageKey, staticPageKey) { item.staticPageKey = it }
                     item.updateField(item.boardKey, null) { item.boardKey = it }
                     item.updateField(item.externalUrl, null) { item.externalUrl = it }
                     item.updateField(item.openInNewTab, false) { item.openInNewTab = it }
