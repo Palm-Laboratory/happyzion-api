@@ -40,5 +40,12 @@ class WebConfig(
             .allowedHeaders("Content-Type", "X-Upload-Token")
             .allowCredentials(false)
             .maxAge(600)
+
+        registry.addMapping("/api/v1/admin/members/**")
+            .allowedOrigins(*allowedOrigins.toTypedArray())
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .allowedHeaders("Content-Type", "Authorization")
+            .allowCredentials(false)
+            .maxAge(600)
     }
 }
