@@ -32,7 +32,7 @@ PRD §1~§4 그대로. 관리자 전용 교적부 기능을 신규 슬라이스(
 | 8 | 입력 검증 강도 | Bean Validation은 형식만(필수/길이/enum). 전화·이메일 정규식 강제 없음. 도메인은 의미적 invariant만. |
 | 9 | 검색 PII 로그 노출 | `RequestLoggingFilter`가 query string 전체를 INFO 로그에 찍으므로, `name`·`phone` 파라미터 평문이 access 로그에 남음. **path-aware redaction** 추가 — `/api/v1/admin/members` 및 사진/감사 로그 하위 경로에서 `name`, `phone` 키의 값을 `[REDACTED]`로 마스킹. 검색을 POST body 기반으로 바꾸지는 않음(REST 관점 어색·다른 모듈 영향). |
 | 10 | MEMBER_PHOTO 업로드 정책 | 사진 토큰 발급 시 클라이언트가 보낸 `allowedMimeTypes`·`maxByteSize`는 **무시**하고 서버 상수로 override: MIME = `image/jpeg`·`image/png`·`image/webp`, max = 5 MiB. `LocalAttachmentStorage.detectMimeType`이 PDF도 허용하지만, 토큰의 화이트리스트와 storage가 받은 MIME 검증을 함께 통과해야 하므로 이미지 외 차단. |
-| 11 | 비활성 admin 가드 범위 | `ActiveAdminGuard`를 `common.security`로 두고, **교적부 서비스 진입점**과 **MEMBER_PHOTO 업로드 토큰 발급 경로** 두 군데에 적용. 다른 모듈 토큰/엔드포인트는 본 설계 범위 밖(별도 과제). |
+| 11 | 비활성 admin 가드 범위·위치 | `AdminAccountGuard`(이름 변경)를 **`adminaccount.application`** 패키지에 둔다 (`AdminAccountRepository`가 같은 모듈에 있어 계층 정합). **교적부 서비스 진입점**, **MEMBER_PHOTO 토큰 발급**, 그리고 **MEMBER_PHOTO 업로드 실행 시점**(`UploadAssetService.upload`의 토큰 소비 후) 세 군데에 적용. 마지막 항목은 토큰 발급~소비 사이 5분 윈도우 동안 계정이 비활성화되는 잔여 리스크를 닫기 위한 추가 검증. 다른 모듈 토큰/엔드포인트는 본 설계 범위 밖(별도 과제). |
 | 12 | `@Converter` DI 방식 | Hibernate의 `SpringBeanContainer`를 활성화하여 컨버터가 빈 의존을 받게 한다. **정적 holder는 명시적으로 채택하지 않음**(테스트 간 상태 오염 위험). |
 
 ### 2.3 개인정보 보호 결정
@@ -130,14 +130,16 @@ org.happyzion.api.common.security.pii/
 | 파일/대상 | 변경 |
 |---|---|
 | `board/domain/PostAssetKind.kt` | enum에 `MEMBER_PHOTO` 추가 (기존: `INLINE_IMAGE`, `FILE_ATTACHMENT`, `MAIN_VIDEO`) |
-| `board/application/AttachmentStorage.kt` | `fun load(storedPath: String): Resource` 추가 (인터페이스) |
-| `board/application/LocalAttachmentStorage.kt` | `load` 구현, `buildStoredPath`가 `kind == MEMBER_PHOTO`인 경우 `member-photos/YYYY/MM/UUID.ext` prefix 사용 |
-| `board/interfaces/api/UploadAdminController.kt` | `issueToken`에서 `kind == MEMBER_PHOTO`이면 ① `ActiveAdminGuard.verify(actorId)` 호출, ② 요청 본문의 `allowedMimeTypes`·`maxByteSize`를 무시하고 `MemberPhotoUploadPolicy` 상수로 override (결정 #10·#11 반영) |
-| `common/security/ActiveAdminGuard.kt` (신규) | `common.security` 패키지에 신규. `AdminAccountRepository` 의존, 비활성 시 `ForbiddenException` |
+| `board/application/AttachmentStorage.kt` | `fun load(storedPath: String): Resource` 추가 (인터페이스). 구현체는 **path traversal 방어 의무**: `root.resolve(storedPath).normalize().startsWith(root)` 검증 실패 시 `NotFoundException`(외부에 구조 노출 안 함) |
+| `board/application/LocalAttachmentStorage.kt` | `load` 구현 — 위 traversal 가드 + 파일 미존재 시 `NotFoundException` + `UrlResource(target.toUri())` 반환. `buildStoredPath`가 `kind == MEMBER_PHOTO`인 경우 `member-photos/YYYY/MM/UUID.ext` prefix 사용 |
+| `board/application/UploadAssetService.kt` | `upload`에서 토큰 소비 후 `kind == MEMBER_PHOTO`이면 `adminAccountGuard.verify(validation.actorId)` 호출 (결정 #11 잔여 리스크 차단). 가드 실패 시 이미 저장된 파일은 `attachmentStorage.delete`로 롤백 |
+| `board/interfaces/api/UploadAdminController.kt` | `issueToken`에서 `kind == MEMBER_PHOTO`이면 ① `adminAccountGuard.verify(actorId)` 호출, ② 요청 본문의 `allowedMimeTypes`·`maxByteSize`를 무시하고 `MemberPhotoUploadPolicy` 상수로 override (결정 #10·#11 반영) |
+| `adminaccount/application/AdminAccountGuard.kt` (신규) | `adminaccount.application` 패키지. `AdminAccountRepository` 의존, 미존재 시 `UnauthorizedException`, 비활성 시 `ForbiddenException` |
 | `common/security/MemberPhotoUploadPolicy.kt` (신규) | `MEMBER_PHOTO_ALLOWED_MIME = listOf("image/jpeg","image/png","image/webp")`, `MEMBER_PHOTO_MAX_BYTES = 5 * 1024 * 1024` |
-| `common/logging/RequestLoggingFilter.kt` | `buildRequestPath`가 path-aware redaction 적용 — `/api/v1/admin/members`(이하 사진/감사 로그 하위 경로 포함)에서 `name`·`phone` query 파라미터 값을 `[REDACTED]`로 치환 후 로그 (결정 #9 반영) |
+| `common/logging/RequestLoggingFilter.kt` | `buildRequestPath`가 path-aware redaction 적용 — `/api/v1/admin/members`(이하 사진/감사 로그 하위 경로 포함)에서 `name`·`phone` query 파라미터 값을 `[REDACTED]`로 치환 후 로그 (결정 #9 반영). 키 매칭은 **대소문자 무시**, 중복 파라미터·URL-encoded 값 모두 마스킹 |
 | `common/security/AdminAuthInterceptor.kt` | **변경 없음** (active 검증은 별도 가드로 대체) |
-| `deploy/nginx/api.happyzion.com.conf` | `/upload/` location에 `location ~ ^/upload/member-photos/ { deny all; }` 또는 동등한 deny 규칙 추가 |
+| `common/config/WebConfig.kt` | `addCorsMappings`에 `/api/v1/admin/members/**` 매핑 신규 추가. `allowedMethods = ["GET","POST","PUT","DELETE","OPTIONS"]`, `allowedHeaders = ["Content-Type","Authorization"]`. 사진 GET이 fetch+blob 패턴으로 호출될 가능성을 대비해 `Authorization` 허용 |
+| `deploy/nginx/api.happyzion.com.conf` | `/upload/` 일반 location보다 **위쪽**에 `location ^~ /upload/member-photos/ { return 404; }` 추가. `^~` modifier로 prefix 일치 시 정규식 location 평가를 중단시켜 우선 매칭 보장. 외부에는 경로 자체가 없는 것처럼 보이도록 404. |
 | `common/config/JpaConfig.kt` (신규 또는 기존 확장) | `HibernatePropertiesCustomizer`로 `hibernate.resource.beans.container`에 `SpringBeanContainer` 등록 (결정 #12 반영) |
 | `ApiApplication.kt` `@EnableConfigurationProperties` | `PiiEncryptionProperties::class` 등록 |
 | `.env.example`, `.env.production.example` | `HAPPYZION_PII_ENCRYPTION_KEYS`, `HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID`, `HAPPYZION_PII_HASH_KEY` 추가 |
@@ -351,9 +353,10 @@ append-only — 단, **DB 차원 강제는 두지 않는다 (결정 #7 반영)**
 ```
 GET /api/v1/admin/members/{id}/photo
   @AdminAuthRequired
+  ├ adminAccountGuard.verify(actorId)
   ├ memberRepo.findById(id) → photoAssetId 확인 (없으면 404)
   ├ postAssetRepo.findById(photoAssetId) → stored_path 확인
-  ├ attachmentStorage.load(stored_path) → Resource
+  ├ attachmentStorage.load(stored_path) → Resource   ★ path traversal 가드 통과
   └ ResponseEntity
        .ok()
        .contentType(MediaType.parseMediaType(asset.mimeType))
@@ -361,7 +364,23 @@ GET /api/v1/admin/members/{id}/photo
        .body(resource)
 ```
 
-저장 시점에 `LocalAttachmentStorage.buildStoredPath`가 `kind == MEMBER_PHOTO`이면 `member-photos/YYYY/MM/UUID.ext` prefix로 저장. nginx는 `/upload/member-photos/`를 deny — 즉 외부 URL로는 절대 접근 불가하고 오직 위 엔드포인트만 노출한다.
+**`attachmentStorage.load` 구현 의무 (path traversal 방어)**:
+```kotlin
+override fun load(storedPath: String): Resource {
+    val target = rootPath.resolve(storedPath).normalize()
+    if (!target.startsWith(rootPath)) {
+        throw NotFoundException("자산을 찾을 수 없습니다.")  // 외부에 구조 노출 방지: 404로 통일
+    }
+    if (!Files.isRegularFile(target)) {
+        throw NotFoundException("자산을 찾을 수 없습니다.")
+    }
+    return UrlResource(target.toUri())
+}
+```
+
+`storedPath`가 DB(`post_asset.stored_path`)에서 온 값이라 통제된 입력이긴 하지만, **인증 프록시는 실제 파일 시스템 경계**이므로 코드 손상·잘못된 마이그레이션 시나리오를 막는 의미로 traversal 가드를 의무화한다.
+
+저장 시점에 `LocalAttachmentStorage.buildStoredPath`가 `kind == MEMBER_PHOTO`이면 `member-photos/YYYY/MM/UUID.ext` prefix로 저장. nginx는 `^~` modifier prefix location으로 `/upload/member-photos/`를 우선 차단 — 즉 외부 URL로는 절대 접근 불가하고 오직 위 엔드포인트만 노출한다.
 
 ### 6.3 사진 attach 생명주기 (리뷰 #3·#5·#6 반영)
 
@@ -454,15 +473,18 @@ ChurchMemberPhotoStreamer           loadForResponse(memberId, actorId): Streamed
 
 `AdminAuthInterceptor`는 JWT만 검증하고 `admin_account.active` 상태는 확인하지 않는다 (`AdminAuthInterceptor.kt:26`). 이 모듈은 PII를 다루므로 추가 가드를 둔다.
 
-**범위 결정**: 인터셉터 자체 수정은 본 모듈 범위 밖(다른 어드민 API도 영향). 대신 `common.security.ActiveAdminGuard`를 신규로 두고 **두 군데**에서 호출:
+**범위·위치 결정**: 인터셉터 자체 수정은 본 모듈 범위 밖(다른 어드민 API도 영향). 가드는 **`adminaccount.application.AdminAccountGuard`** 위치 — `AdminAccountRepository`가 같은 모듈 안에 있으므로 의존이 모듈 내부로 닫힌다. (이전 안의 `common.security` 배치는 common이 feature persistence에 역의존하는 모양이라 폐기.)
+
+호출 지점 **세 군데**:
 
 1. **`ChurchMemberAdminService` 모든 진입점** — read·write 모두
 2. **`UploadAdminController.issueToken`** — `kind == MEMBER_PHOTO`일 때만 호출 (다른 kind는 기존 동작 유지, board·video 모듈 영향 0)
+3. **`UploadAssetService.upload`** — 토큰 소비 후 `kind == MEMBER_PHOTO`일 때만 호출. 토큰 유효 5분 동안 계정이 비활성화되어도 실제 파일·post_asset row 생성을 차단
 
 ```kotlin
-// common/security/ActiveAdminGuard.kt
+// adminaccount/application/AdminAccountGuard.kt
 @Component
-class ActiveAdminGuard(private val adminAccountRepository: AdminAccountRepository) {
+class AdminAccountGuard(private val adminAccountRepository: AdminAccountRepository) {
     fun verify(actorId: Long) {
         val admin = adminAccountRepository.findById(actorId).orElse(null)
             ?: throw UnauthorizedException("관리자 계정을 찾을 수 없습니다.")
@@ -470,6 +492,8 @@ class ActiveAdminGuard(private val adminAccountRepository: AdminAccountRepositor
     }
 }
 ```
+
+`UploadAssetService.upload`에서 가드가 실패하면 이미 저장된 파일은 `attachmentStorage.delete(storedPath)`로 롤백한다 (기존 `RuntimeException` 처리 흐름과 동일 패턴 적용).
 
 audit log 조회(`listAuditLogs`)도 동일 가드 통과한 admin만 허용. 권한 롤 세분화(super-admin만 audit 조회 등)는 Phase 1 비범위(PRD §4 callout과 동일 결정).
 
@@ -481,7 +505,8 @@ audit log 조회(`listAuditLogs`)도 동일 가드 통과한 admin만 허용. �
 
 - **redaction 대상 path**: `/api/v1/admin/members`로 시작하는 모든 경로 (목록·상세·사진·audit 포함)
 - **redaction 대상 파라미터 키**: `name`, `phone` (대소문자 무시)
-- **방식**: query string을 파싱하여 해당 키의 값만 `[REDACTED]`로 치환하고 나머지(예: `status`, `page`, `size`)는 유지
+- **방식**: query string을 `&` 분리 후 각 토큰의 `key=value`에서 key를 case-insensitive 비교. 매칭되는 key의 값만 `[REDACTED]`로 치환. **중복 파라미터(`name=A&name=B`) 모두 마스킹**, **URL-encoded 값(`name=%EA%B9%80%EC%B2%A0%EC%88%98`)은 디코드 없이 그대로 마스킹** (디코드 시점 자체가 새로운 누수 경로가 되므로). value가 없는 경우(`name=`, `name`) 그대로 둠 (평문 누수 아님).
+- 다른 path는 query 무손실 — 기존 동작 회귀 방지
 
 검색을 POST body로 전환하는 옵션은 채택하지 않는다 — REST 컨벤션과 캐싱·북마크 UX, 다른 모듈과의 컨벤션 정합이 깨짐. 필터 한 곳 수정이 보다 가성비 좋다.
 
@@ -519,7 +544,7 @@ val effectiveMax  = if (request.kind == PostAssetKind.MEMBER_PHOTO) MemberPhotoU
 - `PiiEncryptorTest` — round-trip, IV 랜덤성, key id 접두사, 다중 key id 복호, tamper 거부
 - `PiiHasherTest` — 결정성
 - `PiiKeyRingTest` — KEYS 파싱, activeKeyId 누락 시 부팅 실패, 키 누락 시 부팅 실패
-- `ActiveAdminGuardTest` — 미존재/비활성/정상 케이스
+- `AdminAccountGuardTest` — 미존재/비활성/정상 케이스
 - `EncryptedStringConverterTest`, `EncryptedLocalDateConverterTest` — null/empty round-trip
 
 ### 8.2 계약 테스트
@@ -536,13 +561,25 @@ val effectiveMax  = if (request.kind == PostAssetKind.MEMBER_PHOTO) MemberPhotoU
   - blind index 정확일치 검색 동작 (정규화 적용)
   - `photo_asset_id` UNIQUE — 같은 자산을 두 멤버에 연결 시 `DataIntegrityViolationException`
 - **`EnvironmentConfigContractTest` 갱신**: `HAPPYZION_PII_ENCRYPTION_KEYS`, `HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID`, `HAPPYZION_PII_HASH_KEY` 키 계약 추가
-- **`RequestLoggingFilterTest` 추가 (PII redaction)**:
-  - `/api/v1/admin/members?name=김철수&phone=01012345678&page=0` 요청 로그 라인이 `name`/`phone` 값에 평문 미포함, `page=0`은 그대로 노출
-  - 다른 path(`/api/v1/admin/boards/...`)는 query 무손실 — 회귀 방지
+- **`RequestLoggingFilterTest` 추가 (PII redaction)** — 다음 케이스 모두:
+  - 기본: `/api/v1/admin/members?name=김철수&phone=01012345678&page=0` → `name`/`phone` 값에 평문 미포함, `page=0`은 그대로
+  - 대소문자: `?NAME=김철수&Phone=01012345678` → 마스킹됨 (case-insensitive)
+  - 중복 파라미터: `?name=A&name=B` → 두 값 모두 `[REDACTED]`
+  - URL-encoded: `?name=%EA%B9%80%EC%B2%A0%EC%88%98` → 인코딩된 토큰조차 로그에 남지 않음 (디코드 없이 마스킹)
+  - 빈 값: `?name=&phone=` → 형태 그대로 (마스킹 의미 없음, 누수 없음)
+  - 사진/감사 로그 하위 경로: `/api/v1/admin/members/123/photo`, `/api/v1/admin/members/123/audit-logs?name=...`도 동일 마스킹
+  - **회귀 방지**: `/api/v1/admin/boards/...`, `/api/v1/admin/menu/...` 등 다른 path는 query 무손실
 - **`UploadAdminController` 테스트 갱신**:
   - `kind = MEMBER_PHOTO` + 비활성 admin → 403
   - `kind = MEMBER_PHOTO` + 클라이언트가 `allowedMimeTypes = ["application/pdf"]` 보내도 토큰의 `allowed_mime_types`는 서버 상수 3종으로 override됨
   - `kind = INLINE_IMAGE`는 active 가드·정책 override 없이 기존 동작 유지 (회귀 방지)
+- **`UploadAssetService` 테스트 갱신**:
+  - `kind = MEMBER_PHOTO` 토큰 발급 후 admin이 비활성화된 상태에서 `upload` 호출 → 403, 저장된 파일은 `attachmentStorage.delete` 호출 (롤백)
+  - `kind = INLINE_IMAGE`는 기존 동작 유지
+- **`LocalAttachmentStorage` 테스트 갱신**:
+  - `load` path traversal: `../../etc/passwd` 같은 입력 → `NotFoundException`
+  - `load` 정상 경로 → `UrlResource` 반환, byte 일치
+  - `load` 파일 미존재 → `NotFoundException`
 
 ### 8.3 컨트롤러 테스트 (MockMvc)
 
@@ -562,7 +599,7 @@ PRD §3 비범위 + 추가:
 - Hibernate Envers 등 자동 감사
 - audit log append-only DB trigger 강제 (앱 관례로만 보장, V9에서 도입 가능)
 - 교적부 권한 롤 분리 (PRD §4 callout)
-- `AdminAuthInterceptor` 자체에 active admin 검증 도입 (다른 모듈 영향 범위로 별도 과제. 교적부·MEMBER_PHOTO 경로는 `ActiveAdminGuard`로 커버)
+- `AdminAuthInterceptor` 자체에 active admin 검증 도입 (다른 모듈 영향 범위로 별도 과제. 교적부·MEMBER_PHOTO 경로는 `AdminAccountGuard`로 커버)
 - 키 회전 자동화 배치 (수동 절차만 문서화)
 - 사진 별도 비공개 저장소(S3 등) 이전
 - 검색 PII 외 다른 파라미터(예: 향후 추가될 `email`, `birthDate` 등) redaction (현재 결정 #9는 `name`·`phone` 두 키만 처리)
