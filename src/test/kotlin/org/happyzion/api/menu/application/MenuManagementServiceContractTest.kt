@@ -284,11 +284,11 @@ class MenuManagementServiceContractTest {
         val movedChild = MenuItem(
             id = 11L,
             parentId = 10L,
-            type = MenuType.STATIC,
+            type = MenuType.EXTERNAL_LINK,
             status = MenuStatus.PUBLISHED,
-            label = "인사말",
-            slug = "greeting",
-            staticPageKey = "about.greeting",
+            label = "외부 링크",
+            slug = "external",
+            externalUrl = "https://example.com",
             sortOrder = 0,
             depth = 1,
             path = "/10/11/",
@@ -327,11 +327,11 @@ class MenuManagementServiceContractTest {
                     children = listOf(
                         MenuTreeNodeInput(
                             id = 11L,
-                            type = MenuType.STATIC,
+                            type = MenuType.EXTERNAL_LINK,
                             status = MenuStatus.PUBLISHED,
-                            label = "인사말",
-                            slug = "greeting",
-                            staticPageKey = "about.greeting",
+                            label = "외부 링크",
+                            slug = "external",
+                            externalUrl = "https://example.com",
                         )
                     ),
                 )
@@ -343,6 +343,146 @@ class MenuManagementServiceContractTest {
         assertThat(movedChild.parentId).isEqualTo(20L)
         assertThat(movedChild.path).isEqualTo("/20/11/")
         verify(menuItemRepository, never()).save(any())
+    }
+
+    @Test
+    fun `replaceTree rejects moving a static menu to another parent`() {
+        val menuItemRepository = mock<MenuItemRepository>()
+        val service = menuManagementService(menuItemRepository)
+        val firstRoot = MenuItem(
+            id = 10L,
+            type = MenuType.FOLDER,
+            status = MenuStatus.PUBLISHED,
+            label = "교회 소개",
+            slug = "about",
+            sortOrder = 0,
+            depth = 0,
+            path = "/10/",
+        )
+        val staticChild = MenuItem(
+            id = 11L,
+            parentId = 10L,
+            type = MenuType.STATIC,
+            status = MenuStatus.PUBLISHED,
+            label = "인사말",
+            slug = "greeting",
+            staticPageKey = "about.greeting",
+            sortOrder = 0,
+            depth = 1,
+            path = "/10/11/",
+        )
+        val secondRoot = MenuItem(
+            id = 20L,
+            type = MenuType.FOLDER,
+            status = MenuStatus.PUBLISHED,
+            label = "새가족",
+            slug = "discipleship",
+            sortOrder = 1,
+            depth = 0,
+            path = "/20/",
+        )
+        val existingItems = listOf(firstRoot, staticChild, secondRoot)
+
+        whenever(menuItemRepository.findAllByOrderBySortOrderAscIdAsc())
+            .thenReturn(existingItems)
+
+        assertThatThrownBy {
+            service.replaceTree(
+                actorId = 1L,
+                items = listOf(
+                    MenuTreeNodeInput(
+                        id = 10L,
+                        type = MenuType.FOLDER,
+                        status = MenuStatus.PUBLISHED,
+                        label = "교회 소개",
+                        slug = "about",
+                    ),
+                    MenuTreeNodeInput(
+                        id = 20L,
+                        type = MenuType.FOLDER,
+                        status = MenuStatus.PUBLISHED,
+                        label = "새가족",
+                        slug = "discipleship",
+                        children = listOf(
+                            MenuTreeNodeInput(
+                                id = 11L,
+                                type = MenuType.STATIC,
+                                status = MenuStatus.PUBLISHED,
+                                label = "인사말",
+                                slug = "greeting",
+                                staticPageKey = "about.greeting",
+                            )
+                        ),
+                    )
+                ),
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("정적 페이지 메뉴는 상위 메뉴를 변경할 수 없습니다.")
+
+        assertThat(staticChild.parentId).isEqualTo(10L)
+        assertThat(staticChild.path).isEqualTo("/10/11/")
+    }
+
+    @Test
+    fun `replaceTree rejects changing the URL slug of a GNB that contains static menus`() {
+        val menuItemRepository = mock<MenuItemRepository>()
+        val service = menuManagementService(menuItemRepository)
+        val root = MenuItem(
+            id = 10L,
+            type = MenuType.FOLDER,
+            status = MenuStatus.PUBLISHED,
+            label = "교회 소개",
+            slug = "about",
+            sortOrder = 0,
+            depth = 0,
+            path = "/10/",
+        )
+        val staticChild = MenuItem(
+            id = 11L,
+            parentId = 10L,
+            type = MenuType.STATIC,
+            status = MenuStatus.PUBLISHED,
+            label = "인사말",
+            slug = "greeting",
+            staticPageKey = "about.greeting",
+            sortOrder = 0,
+            depth = 1,
+            path = "/10/11/",
+        )
+        val existingItems = listOf(root, staticChild)
+
+        whenever(menuItemRepository.findAllByOrderBySortOrderAscIdAsc())
+            .thenReturn(existingItems)
+
+        assertThatThrownBy {
+            service.replaceTree(
+                actorId = 1L,
+                items = listOf(
+                    MenuTreeNodeInput(
+                        id = 10L,
+                        type = MenuType.FOLDER,
+                        status = MenuStatus.PUBLISHED,
+                        label = "교회 소개",
+                        slug = "church",
+                        children = listOf(
+                            MenuTreeNodeInput(
+                                id = 11L,
+                                type = MenuType.STATIC,
+                                status = MenuStatus.PUBLISHED,
+                                label = "인사말",
+                                slug = "greeting",
+                                staticPageKey = "about.greeting",
+                            )
+                        ),
+                    )
+                ),
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("정적 페이지를 포함한 GNB는 URL 경로를 변경할 수 없습니다.")
+
+        assertThat(root.slug).isEqualTo("about")
     }
 
     @Test

@@ -6,6 +6,8 @@ out
 .idea
 *.iml
 .env
+.env.prod
+.env.production
 .local
 .DS_Store
 .DB_Stroe

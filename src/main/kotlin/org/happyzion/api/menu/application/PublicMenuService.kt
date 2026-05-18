@@ -91,6 +91,11 @@ class PublicMenuService(
         val childrenByParent = publishedItems.groupBy { it.parentId }
         val itemsById = publishedItems.associateBy { it.id!! }
         val normalizedPath = normalizeLookupPath(path)
+        val staticRouteMenu = resolvePublishedStaticRoute(normalizedPath, publishedItems)
+        if (staticRouteMenu != null) {
+            return buildResolvedMenuPage(staticRouteMenu, childrenByParent, itemsById, redirectTo = null)
+        }
+
         val menu = resolvePublishedMenu(normalizedPath, childrenByParent)
 
         if (menu.type == MenuType.FOLDER || menu.type == MenuType.YOUTUBE_PLAYLIST_GROUP) {
@@ -110,16 +115,28 @@ class PublicMenuService(
             )
         }
 
+        val fullPath = resolveHref(menu, childrenByParent, itemsById)
+        val redirectTo = fullPath.takeIf { menu.type == MenuType.STATIC && it != normalizedPath }
+        return buildResolvedMenuPage(menu, childrenByParent, itemsById, redirectTo = redirectTo)
+    }
+
+    private fun buildResolvedMenuPage(
+        menu: MenuItem,
+        childrenByParent: Map<Long?, List<MenuItem>>,
+        itemsById: Map<Long, MenuItem>,
+        redirectTo: String?,
+    ): PublicResolvedMenuPage {
+        val fullPath = redirectTo ?: resolveHref(menu, childrenByParent, itemsById)
         return PublicResolvedMenuPage(
             menuId = menu.id ?: throw IllegalStateException("메뉴 id가 없습니다."),
             type = menu.type,
             label = menu.label,
             slug = menu.slug,
-            fullPath = resolveHref(menu, childrenByParent, itemsById),
+            fullPath = fullPath,
             parentLabel = menu.parentId?.let(itemsById::get)?.label,
             staticPageKey = menu.staticPageKey,
             boardKey = menu.boardKey,
-            redirectTo = null,
+            redirectTo = redirectTo,
         )
     }
 
@@ -172,7 +189,7 @@ class PublicMenuService(
         itemsById: Map<Long, MenuItem>,
     ): String =
         when (item.type) {
-            MenuType.STATIC -> buildMenuPath(item, itemsById)
+            MenuType.STATIC -> buildStaticHref(item, itemsById)
             MenuType.BOARD -> buildMenuPath(item, itemsById)
             MenuType.YOUTUBE_PLAYLIST -> buildStableHref(item, itemsById)
             MenuType.EXTERNAL_LINK -> item.externalUrl ?: "/"
@@ -206,6 +223,9 @@ class PublicMenuService(
             else -> "/"
         }
 
+    private fun buildStaticHref(item: MenuItem, itemsById: Map<Long, MenuItem>): String =
+        StaticPageCatalog.resolveRoute(item.staticPageKey) ?: buildMenuPath(item, itemsById)
+
     private fun buildMenuPath(item: MenuItem, itemsById: Map<Long, MenuItem>): String =
         buildPath(item, itemsById)
 
@@ -229,6 +249,14 @@ class PublicMenuService(
         path: String,
         childrenByParent: Map<Long?, List<MenuItem>>,
     ): MenuItem = resolvePublishedPath(path, childrenByParent)
+
+    private fun resolvePublishedStaticRoute(
+        path: String,
+        publishedItems: List<MenuItem>,
+    ): MenuItem? =
+        publishedItems.firstOrNull { item ->
+            item.type == MenuType.STATIC && StaticPageCatalog.resolveRoute(item.staticPageKey) == path
+        }
 
     private fun normalizeLookupPath(path: String): String {
         val trimmed = path.substringBefore('?').substringBefore('#').trim()
