@@ -44,3 +44,14 @@ happyzion.uploads.public-base-url: ${HAPPYZION_UPLOAD_PUBLIC_BASE_URL:https://ap
 youtube:
   api-key: ${YOUTUBE_API_KEY:}
   channel-id: ${YOUTUBE_CHANNEL_ID:}
+
+solapi:
+  api-key: ${SOLAPI_API_KEY:}
+  api-secret: ${SOLAPI_API_SECRET:}
+  sender: ${SOLAPI_SENDER:}
+
+pii:
+  encryption:
+    keys: ${HAPPYZION_PII_ENCRYPTION_KEYS:}
+    active-key-id: ${HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID:}
+    hash-key: ${HAPPYZION_PII_HASH_KEY:}
