@@ -1,5 +1,6 @@
 package org.happyzion.api.board.application
 
+import org.happyzion.api.adminaccount.application.AdminAccountGuard
 import org.happyzion.api.board.domain.PostAsset
 import org.happyzion.api.board.domain.PostAssetKind
 import org.happyzion.api.board.infrastructure.persistence.PostAssetRepository
@@ -13,6 +14,7 @@ class UploadAssetService(
     private val uploadTokenService: UploadTokenService,
     private val attachmentStorage: AttachmentStorage,
     private val postAssetRepository: PostAssetRepository,
+    private val adminAccountGuard: AdminAccountGuard,
 ) {
     @Transactional
     fun upload(
@@ -38,6 +40,15 @@ class UploadAssetService(
             kind = kind,
             maxByteSize = validation.maxByteSize,
         )
+
+        if (kind == PostAssetKind.MEMBER_PHOTO) {
+            try {
+                adminAccountGuard.verify(validation.actorId)
+            } catch (ex: RuntimeException) {
+                attachmentStorage.delete(storedAttachment.storedPath)
+                throw ex
+            }
+        }
 
         val asset = PostAsset(
             uploadedByActorId = validation.actorId,
