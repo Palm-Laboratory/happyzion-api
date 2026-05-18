@@ -45,11 +45,6 @@ youtube:
   api-key: ${YOUTUBE_API_KEY:}
   channel-id: ${YOUTUBE_CHANNEL_ID:}
 
-solapi:
-  api-key: ${SOLAPI_API_KEY:}
-  api-secret: ${SOLAPI_API_SECRET:}
-  sender: ${SOLAPI_SENDER:}
-
 pii:
   encryption:
     keys: ${HAPPYZION_PII_ENCRYPTION_KEYS:}

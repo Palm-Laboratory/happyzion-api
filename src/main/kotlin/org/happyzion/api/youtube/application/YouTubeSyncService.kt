@@ -58,6 +58,10 @@ class YouTubeSyncService(
         val existingPlaylists = youTubePlaylistRepository.findAllByChannelId(channel.id!!)
         val existingByPlaylistId = existingPlaylists.associateBy { it.playlistId }
         val existingVideosByVideoId = youTubeVideoRepository.findAllByChannelId(channel.id).associateBy { it.videoId }
+        menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
+            .filter { it.type == MenuType.YOUTUBE_PLAYLIST && it.status == MenuStatus.ARCHIVED }
+            .forEach { menuItemRepository.delete(it) }
+
         val seenPlaylistIds = linkedSetOf<String>()
         val playlistItemsByPlaylistId = linkedMapOf<String, List<PlaylistItemPayload>>()
         val videoContentFormByVideoId = linkedMapOf<String, YouTubeContentForm>()
@@ -65,7 +69,6 @@ class YouTubeSyncService(
         var createdMenus = 0
         var updatedMenus = 0
         var archivedMenus = 0
-        var restoredMenus = 0
 
         playlistPayloads.forEach { payload ->
             seenPlaylistIds += payload.playlistId
@@ -131,10 +134,6 @@ class YouTubeSyncService(
                         menu.slug = normalizedSlug
                         updatedMenus += 1
                     }
-                }
-                if (menu.status == MenuStatus.ARCHIVED && persistedPlaylist.syncStatus == YouTubeSyncStatus.ACTIVE) {
-                    menu.status = MenuStatus.DRAFT
-                    restoredMenus += 1
                 }
                 menuItemRepository.save(menu)
             }
@@ -245,7 +244,6 @@ class YouTubeSyncService(
             createdMenus = createdMenus,
             updatedMenus = updatedMenus,
             archivedMenus = archivedMenus,
-            restoredMenus = restoredMenus,
             completedAt = now.toString(),
         )
     }
