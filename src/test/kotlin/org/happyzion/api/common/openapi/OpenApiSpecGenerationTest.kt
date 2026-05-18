@@ -2,6 +2,7 @@ package org.happyzion.api.common.openapi
 
 import org.assertj.core.api.Assertions.assertThat
 import org.happyzion.api.adminaccount.application.AdminAccountAuthService
+import org.happyzion.api.adminaccount.application.AdminAccountGuard
 import org.happyzion.api.adminaccount.application.AdminAccountManagementService
 import org.happyzion.api.adminaccount.interfaces.api.AdminAccountController
 import org.happyzion.api.adminaccount.interfaces.api.AdminAuthController
@@ -63,6 +64,7 @@ class OpenApiSpecGenerationTest {
     @MockitoBean private lateinit var videoService: VideoService
 
     // ── admin account ──────────────────────────────────────────────────────────
+    @MockitoBean private lateinit var adminAccountGuard: AdminAccountGuard
     @MockitoBean private lateinit var adminAccountManagementService: AdminAccountManagementService
     @MockitoBean private lateinit var adminAccountAuthService: AdminAccountAuthService
 

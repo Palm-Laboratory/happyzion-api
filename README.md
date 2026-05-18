@@ -26,6 +26,8 @@ cp .env.example .env
 ./gradlew bootRun
 ```
 
+`bootRun`은 프로젝트 루트의 `.env`를 자동으로 읽습니다.
+
 로컬 PostgreSQL을 Docker로 띄우려면:
 
 ```bash
@@ -35,7 +37,7 @@ docker compose -f docker-compose.local.yml up -d
 ## 환경 변수
 
 ```text
-DB_URL=jdbc:postgresql://localhost:5432/happyzion
+DB_URL=jdbc:postgresql://localhost:5433/happyzion
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 ADMIN_JWT_SECRET=your-admin-jwt-secret-at-least-32-bytes
@@ -44,6 +46,9 @@ HAPPYZION_UPLOAD_ROOT=/opt/happyzion/uploads
 HAPPYZION_UPLOAD_PUBLIC_BASE_URL=http://localhost:8080/upload
 YOUTUBE_API_KEY=replace-me
 YOUTUBE_CHANNEL_ID=replace-me
+HAPPYZION_PII_ENCRYPTION_KEYS=v1:replace-with-base64-of-32-random-bytes
+HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID=v1
+HAPPYZION_PII_HASH_KEY=replace-with-base64-of-32-random-bytes
 ```
 
 ## 주요 엔드포인트
@@ -56,12 +61,22 @@ YOUTUBE_CHANNEL_ID=replace-me
 - `GET /api/v1/public/menu`
 - `POST /api/v1/admin/uploads/token`
 - `POST /api/v1/admin/uploads`
+- `GET /api/v1/admin/members`
+- `POST /api/v1/admin/members`
+- `GET /api/v1/admin/members/{id}`
+- `PUT /api/v1/admin/members/{id}`
+- `DELETE /api/v1/admin/members/{id}`
+- `POST /api/v1/admin/members/{id}/photo`
+- `DELETE /api/v1/admin/members/{id}/photo`
+- `GET /api/v1/admin/members/{id}/photo`
+- `GET /api/v1/admin/members/{id}/audit-logs`
 
 ## 운영 배포 메모
 
 - 운영 기본 경로: `/opt/happyzion`
 - 업로드 기본 경로: `/opt/happyzion/uploads`
 - 운영 compose: `deploy/docker-compose.prod.yml`
+- 런타임/배포 스택 결정: `docs/backend-runtime-decision.md`
 - nginx 템플릿:
   - `deploy/nginx/api.happyzion.com.pre-ssl.conf`
   - `deploy/nginx/happyzion-upload-http-context.conf`
