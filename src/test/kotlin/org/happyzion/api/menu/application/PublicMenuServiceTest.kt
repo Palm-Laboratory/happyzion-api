@@ -67,6 +67,42 @@ class PublicMenuServiceTest {
     }
 
     @Test
+    fun `static menu resolves through code registered path even when menu slugs change`() {
+        val about = menuItem(
+            id = 12L,
+            type = MenuType.FOLDER,
+            label = "교회소개",
+            slug = "church",
+        )
+        val greeting = menuItem(
+            id = 13L,
+            parentId = about.id,
+            type = MenuType.STATIC,
+            label = "인사말",
+            slug = "hello",
+            staticPageKey = "about.greeting",
+        )
+        whenever(menuItemRepository.findAllByStatusOrderBySortOrderAscIdAsc(MenuStatus.PUBLISHED))
+            .thenReturn(listOf(about, greeting))
+
+        val navigation = service.getNavigation()
+        val resolved = service.resolveMenuPath("/about/greeting")
+        val legacyResolved = service.resolveMenuPath("/church/hello")
+
+        assertAll(
+            { assertEquals("/about/greeting", navigation.groups.single().href) },
+            { assertEquals("/about/greeting", navigation.groups.single().defaultLandingHref) },
+            { assertEquals("/about/greeting", navigation.groups.single().items.single().href) },
+            { assertEquals(MenuType.STATIC, resolved.type) },
+            { assertEquals("인사말", resolved.label) },
+            { assertEquals("/about/greeting", resolved.fullPath) },
+            { assertNull(resolved.redirectTo) },
+            { assertEquals("/about/greeting", legacyResolved.fullPath) },
+            { assertEquals("/about/greeting", legacyResolved.redirectTo) },
+        )
+    }
+
+    @Test
     fun `resolveMenuPath redirects folder to first published child without extra slug lookups`() {
         val about = menuItem(
             id = 20L,

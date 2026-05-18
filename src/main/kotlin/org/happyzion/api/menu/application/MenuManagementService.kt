@@ -41,6 +41,10 @@ class MenuManagementService(
     private companion object {
         const val STATIC_MENU_DEVELOPER_OWNED_MESSAGE =
             "정적 페이지 메뉴는 코드에 등록된 컴포넌트와 1:1로 묶여 있어 어드민에서 추가·삭제·연결 변경을 할 수 없습니다. 개발팀에 문의해 주세요."
+        const val STATIC_MENU_PARENT_LOCKED_MESSAGE =
+            "정적 페이지 메뉴는 상위 메뉴를 변경할 수 없습니다."
+        const val STATIC_MENU_GROUP_URL_LOCKED_MESSAGE =
+            "정적 페이지를 포함한 GNB는 URL 경로를 변경할 수 없습니다."
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +60,10 @@ class MenuManagementService(
 
         val existingItems = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
         val existingById = existingItems.associateBy { it.id!! }
+        val existingStaticParentIds = existingItems
+            .filter { it.type == MenuType.STATIC }
+            .mapNotNull { it.parentId }
+            .toSet()
         val seenIds = linkedSetOf<Long>()
         val pathRecomputeRootIds = linkedSetOf<Long>()
 
@@ -66,6 +74,7 @@ class MenuManagementService(
             depth = 0,
             parentType = null,
             existingById = existingById,
+            existingStaticParentIds = existingStaticParentIds,
             seenIds = seenIds,
             pathRecomputeRootIds = pathRecomputeRootIds,
         )
@@ -199,6 +208,7 @@ class MenuManagementService(
         depth: Int,
         parentType: MenuType?,
         existingById: Map<Long, MenuItem>,
+        existingStaticParentIds: Set<Long>,
         seenIds: MutableSet<Long>,
         pathRecomputeRootIds: MutableSet<Long>,
     ): List<MenuItem> =
@@ -233,9 +243,16 @@ class MenuManagementService(
                 null
             }
 
+            val isStaticMenuGroup = item.id != null && item.type == MenuType.FOLDER && item.id in existingStaticParentIds
             val resolvedSlug = if (item.id != null && item.type == MenuType.STATIC) {
                 if (item.parentId != parentId) {
-                    ensureSlugAvailable(item.slug, item.id, parentId)
+                    throw IllegalArgumentException(STATIC_MENU_PARENT_LOCKED_MESSAGE)
+                }
+                ResolvedSlug(value = item.slug, customized = item.slugCustomized)
+            } else if (isStaticMenuGroup) {
+                val incomingSlug = MenuSlugSupport.slugifyToAscii(node.slug.ifBlank { item.slug })
+                if (incomingSlug != item.slug) {
+                    throw IllegalArgumentException(STATIC_MENU_GROUP_URL_LOCKED_MESSAGE)
                 }
                 ResolvedSlug(value = item.slug, customized = item.slugCustomized)
             } else {
@@ -347,6 +364,7 @@ class MenuManagementService(
                 depth = depth + 1,
                 parentType = saved.type,
                 existingById = existingById + (saved.id!! to saved),
+                existingStaticParentIds = existingStaticParentIds,
                 seenIds = seenIds,
                 pathRecomputeRootIds = pathRecomputeRootIds,
             )
