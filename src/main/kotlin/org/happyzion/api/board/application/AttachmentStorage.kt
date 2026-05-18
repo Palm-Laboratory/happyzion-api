@@ -1,6 +1,7 @@
 package org.happyzion.api.board.application
 
 import org.happyzion.api.board.domain.PostAssetKind
+import org.springframework.core.io.Resource
 import org.springframework.web.multipart.MultipartFile
 
 interface AttachmentStorage {
@@ -11,6 +12,7 @@ interface AttachmentStorage {
     ): StoredAttachment
 
     fun delete(storedPath: String)
+    fun load(storedPath: String): Resource
 }
 
 data class StoredAttachment(

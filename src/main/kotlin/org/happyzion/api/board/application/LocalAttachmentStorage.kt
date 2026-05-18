@@ -2,8 +2,11 @@ package org.happyzion.api.board.application
 
 import org.happyzion.api.board.domain.PostAssetKind
 import org.happyzion.api.common.config.UploadProperties
+import org.happyzion.api.common.error.NotFoundException
 import net.coobird.thumbnailator.Thumbnails
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.Resource
+import org.springframework.core.io.UrlResource
 import org.springframework.stereotype.Component
 import org.springframework.web.multipart.MultipartFile
 import java.io.ByteArrayInputStream
@@ -41,7 +44,7 @@ class LocalAttachmentStorage(
 
         val processedAttachment = processAttachment(bytes, mimeType)
         val extension = extensionForMimeType(processedAttachment.mimeType)
-        val storedPath = buildStoredPath(extension)
+        val storedPath = buildStoredPath(kind, extension)
         val target = rootPath.resolve(storedPath)
 
         Files.createDirectories(target.parent)
@@ -58,6 +61,18 @@ class LocalAttachmentStorage(
 
     override fun delete(storedPath: String) {
         Files.deleteIfExists(rootPath.resolve(storedPath))
+    }
+
+    override fun load(storedPath: String): Resource {
+        val root = rootPath.toAbsolutePath().normalize()
+        val target = root.resolve(storedPath).normalize()
+        if (!target.startsWith(root)) {
+            throw NotFoundException("자산을 찾을 수 없습니다.")
+        }
+        if (!Files.isRegularFile(target)) {
+            throw NotFoundException("자산을 찾을 수 없습니다.")
+        }
+        return UrlResource(target.toUri())
     }
 
     private fun processAttachment(bytes: ByteArray, mimeType: String): ProcessedAttachment =
@@ -119,9 +134,10 @@ class LocalAttachmentStorage(
         }
     }
 
-    private fun buildStoredPath(extension: String): String {
+    private fun buildStoredPath(kind: PostAssetKind, extension: String): String {
         val now = LocalDate.now()
-        return "%04d/%02d/%s.%s".format(
+        val prefix = if (kind == PostAssetKind.MEMBER_PHOTO) "member-photos/" else ""
+        return "${prefix}%04d/%02d/%s.%s".format(
             now.year,
             now.monthValue,
             UUID.randomUUID().toString(),
