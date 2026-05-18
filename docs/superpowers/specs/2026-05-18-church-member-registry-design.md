@@ -23,13 +23,17 @@ PRD §1~§4 그대로. 관리자 전용 교적부 기능을 신규 슬라이스(
 | 4 | 목록 기본 필터 | `REMOVED`·`DECEASED`는 기본 숨김, `includeInactive=true` 토글로 노출. |
 | 5 | X-Admin-Key 전환 전 출시 | 무효화 — 이미 JWT(`AdminAuthInterceptor` + `@AdminAuthRequired` + Bearer)로 전환됨. `audit_log.actor_id` 처음부터 `NOT NULL`. |
 
-### 2.2 브레인스토밍 추가 결정 3개
+### 2.2 브레인스토밍 추가 결정
 
 | # | 항목 | 결정 |
 |---|---|---|
-| 6 | 사진 업로드 패턴 | 기존 `post_asset` / `UploadTokenService` / `UploadAssetService` 인프라 재사용 + `PostAssetKind.MEMBER_PHOTO` 추가. 소유권은 `church_member.photo_asset_id` 단일 FK + UNIQUE로 표현. **저장 디렉토리는 별도 private prefix** + **Spring 인증 프록시 스트리밍**으로 서빙. |
-| 7 | 감사 로그 캡처 방식 | 서비스 레이어에서 명시적 before/after 스냅샷 비교 후 JSON diff 생성. Envers·`@EntityListener` 자동화 미도입. |
+| 6 | 사진 업로드 패턴 | 기존 `post_asset` / `UploadTokenService` / `UploadAssetService` 인프라 재사용 + `PostAssetKind.MEMBER_PHOTO` 추가. 소유권은 `church_member.photo_asset_id` 단일 FK + UNIQUE로 표현. **저장 디렉토리는 별도 private prefix** + **Spring 인증 프록시 스트리밍**으로 서빙. MIME·크기 정책은 서버 상수로 강제. |
+| 7 | 감사 로그 캡처 방식 | 서비스 레이어에서 명시적 before/after 스냅샷 비교 후 JSON diff 생성. Envers·`@EntityListener` 자동화 미도입. **append-only는 앱 관례로만 보장**(setter 없음, save 전용). DB trigger 강제는 Phase 1 비범위. |
 | 8 | 입력 검증 강도 | Bean Validation은 형식만(필수/길이/enum). 전화·이메일 정규식 강제 없음. 도메인은 의미적 invariant만. |
+| 9 | 검색 PII 로그 노출 | `RequestLoggingFilter`가 query string 전체를 INFO 로그에 찍으므로, `name`·`phone` 파라미터 평문이 access 로그에 남음. **path-aware redaction** 추가 — `/api/v1/admin/members` 및 사진/감사 로그 하위 경로에서 `name`, `phone` 키의 값을 `[REDACTED]`로 마스킹. 검색을 POST body 기반으로 바꾸지는 않음(REST 관점 어색·다른 모듈 영향). |
+| 10 | MEMBER_PHOTO 업로드 정책 | 사진 토큰 발급 시 클라이언트가 보낸 `allowedMimeTypes`·`maxByteSize`는 **무시**하고 서버 상수로 override: MIME = `image/jpeg`·`image/png`·`image/webp`, max = 5 MiB. `LocalAttachmentStorage.detectMimeType`이 PDF도 허용하지만, 토큰의 화이트리스트와 storage가 받은 MIME 검증을 함께 통과해야 하므로 이미지 외 차단. |
+| 11 | 비활성 admin 가드 범위 | `ActiveAdminGuard`를 `common.security`로 두고, **교적부 서비스 진입점**과 **MEMBER_PHOTO 업로드 토큰 발급 경로** 두 군데에 적용. 다른 모듈 토큰/엔드포인트는 본 설계 범위 밖(별도 과제). |
+| 12 | `@Converter` DI 방식 | Hibernate의 `SpringBeanContainer`를 활성화하여 컨버터가 빈 의존을 받게 한다. **정적 holder는 명시적으로 채택하지 않음**(테스트 간 상태 오염 위험). |
 
 ### 2.3 개인정보 보호 결정
 
@@ -113,11 +117,13 @@ org.happyzion.api.common.security.pii/
 └── EncryptedLocalDateConverter.kt     (@Converter, ISO 문자열 변환 포함)
 ```
 
-**`@Converter`의 빈 주입**: JPA 자체는 컨버터에 DI를 지원하지 않으므로, `SpringBeanContainer`(Hibernate)나 `EntityManagerFactory` 빈 생성 시점에 `ManagedBeanRegistry`를 등록해서 컨버터가 빈 의존을 받게 한다. 또는 더 단순하게 정적 보유자(`PiiEncryptorHolder`)에 startup 시점에 인스턴스를 주입하는 방식 — 두 옵션 모두 실행 시점 확정이라 테스트에서는 `@SpringBootTest` 슬라이스로 검증한다.
+**`@Converter`의 빈 주입 (결정 #12 반영)**: Hibernate의 `SpringBeanContainer`를 활성화한다. `LocalContainerEntityManagerFactoryBean`(또는 Spring Boot의 `HibernatePropertiesCustomizer`)에서 `hibernate.resource.beans.container`에 `SpringBeanContainer`를 등록하면 컨버터가 Spring 빈 의존을 받는다. 정적 holder(`PiiEncryptorHolder`) 방식은 **채택하지 않는다** — 테스트 간 정적 상태 오염, 시작 시점 의존성이 암묵적, 키 회전·다중 인스턴스 시나리오에서 사고 가능성.
+
+**키 누락 시점**: `PiiEncryptionProperties`의 `@Validated` 검증이 startup 시점에 동작. 키 비어있으면 `ApplicationContextException`으로 부팅 자체가 실패 — 런타임 첫 암복호 시점이 아니라 부팅 시점에 즉시 드러난다.
 
 **테스트 대체 전략**:
-- 단위 테스트: `EncryptedStringConverter`를 사용하지 않고 도메인·서비스 로직만 검증
-- JPA 통합 테스트(`@DataJpaTest`/슬라이스): `PiiEncryptor` 빈이 테스트용 키 셋으로 등록되어야 함. `src/test/resources/application.yml`에 테스트 키 명시 + `PiiEncryptionProperties`가 그 키를 로드
+- 단위 테스트: 도메인·서비스 로직만 검증, `EncryptedStringConverter` 우회
+- JPA 통합 테스트(`@DataJpaTest`/슬라이스): `src/test/resources/application.yml`에 테스트 전용 PII 키 셋 명시, `PiiEncryptionProperties`가 자동 바인딩. `SpringBeanContainer` 설정도 테스트 컨텍스트에서 그대로 활성화
 
 ### 3.3 기존 모듈 변경
 
@@ -126,13 +132,19 @@ org.happyzion.api.common.security.pii/
 | `board/domain/PostAssetKind.kt` | enum에 `MEMBER_PHOTO` 추가 (기존: `INLINE_IMAGE`, `FILE_ATTACHMENT`, `MAIN_VIDEO`) |
 | `board/application/AttachmentStorage.kt` | `fun load(storedPath: String): Resource` 추가 (인터페이스) |
 | `board/application/LocalAttachmentStorage.kt` | `load` 구현, `buildStoredPath`가 `kind == MEMBER_PHOTO`인 경우 `member-photos/YYYY/MM/UUID.ext` prefix 사용 |
+| `board/interfaces/api/UploadAdminController.kt` | `issueToken`에서 `kind == MEMBER_PHOTO`이면 ① `ActiveAdminGuard.verify(actorId)` 호출, ② 요청 본문의 `allowedMimeTypes`·`maxByteSize`를 무시하고 `MemberPhotoUploadPolicy` 상수로 override (결정 #10·#11 반영) |
+| `common/security/ActiveAdminGuard.kt` (신규) | `common.security` 패키지에 신규. `AdminAccountRepository` 의존, 비활성 시 `ForbiddenException` |
+| `common/security/MemberPhotoUploadPolicy.kt` (신규) | `MEMBER_PHOTO_ALLOWED_MIME = listOf("image/jpeg","image/png","image/webp")`, `MEMBER_PHOTO_MAX_BYTES = 5 * 1024 * 1024` |
+| `common/logging/RequestLoggingFilter.kt` | `buildRequestPath`가 path-aware redaction 적용 — `/api/v1/admin/members`(이하 사진/감사 로그 하위 경로 포함)에서 `name`·`phone` query 파라미터 값을 `[REDACTED]`로 치환 후 로그 (결정 #9 반영) |
+| `common/security/AdminAuthInterceptor.kt` | **변경 없음** (active 검증은 별도 가드로 대체) |
 | `deploy/nginx/api.happyzion.com.conf` | `/upload/` location에 `location ~ ^/upload/member-photos/ { deny all; }` 또는 동등한 deny 규칙 추가 |
-| `ApiApplication.kt` `@EnableConfigurationProperties` | `PiiEncryptionProperties::class` 등록 (`AdminProperties`, `CorsProperties` 등과 같은 패턴) |
+| `common/config/JpaConfig.kt` (신규 또는 기존 확장) | `HibernatePropertiesCustomizer`로 `hibernate.resource.beans.container`에 `SpringBeanContainer` 등록 (결정 #12 반영) |
+| `ApiApplication.kt` `@EnableConfigurationProperties` | `PiiEncryptionProperties::class` 등록 |
 | `.env.example`, `.env.production.example` | `HAPPYZION_PII_ENCRYPTION_KEYS`, `HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID`, `HAPPYZION_PII_HASH_KEY` 추가 |
 | `application.yml` | 위 키 바인딩 |
 | `deploy/docker-compose.prod.yml` | `app` 서비스의 `environment:`에 위 세 변수 전달 추가 |
 | `src/test/kotlin/org/happyzion/api/support/EnvironmentConfigContractTest.kt` | 새 환경변수 키 계약 추가 |
-| `src/test/kotlin/org/happyzion/api/board/BoardSchemaContractTest.kt` | 마이그레이션 목록(`containsExactly`)에 V8 추가 — 기타 V1 베이스라인 단언은 그대로 |
+| `src/test/kotlin/org/happyzion/api/board/BoardSchemaContractTest.kt` | 마이그레이션 목록(`containsExactly`)에 V8 추가 — V1 베이스라인 단언은 그대로 |
 
 ## 4. DB 스키마 — V8 마이그레이션
 
@@ -239,25 +251,27 @@ create index idx_church_member_audit_member_id
     on church_member_audit_log(church_member_id, created_at desc, id desc);
 ```
 
-### 4.4 기존 테이블 CHECK 제약 확장 (리뷰 #1 반영)
+### 4.4 기존 테이블 CHECK 제약 확장 (리뷰 #1·#7 반영)
 
-`MAIN_VIDEO` 보존 + `MEMBER_PHOTO` 추가:
+두 테이블의 정책이 다르다는 점을 명확히 분리한다.
+
+- **`post_asset`**: V1 이래 `INLINE_IMAGE`·`FILE_ATTACHMENT`만 허용. 메인 영상은 `post_asset` row를 만들지 않기 때문에 V3에서도 추가하지 않았다. V8은 여기에 **`MEMBER_PHOTO`만 추가** — `MAIN_VIDEO`는 의도적으로 미포함.
+- **`upload_token`**: V3에서 `MAIN_VIDEO`까지 허용했다. V8은 그 위에 **`MEMBER_PHOTO`를 추가**하여 4종 모두 허용.
 
 ```sql
+-- post_asset: MAIN_VIDEO는 포함하지 않음 (의도)
 alter table post_asset
     drop constraint chk_post_asset_kind;
 alter table post_asset
     add constraint chk_post_asset_kind
     check (kind in ('INLINE_IMAGE','FILE_ATTACHMENT','MEMBER_PHOTO'));
--- post_asset에는 V1 기준 INLINE_IMAGE/FILE_ATTACHMENT만 있었고 MAIN_VIDEO는 upload_token에만 추가됨.
--- 그 정책 유지하고 MEMBER_PHOTO만 신규.
 
+-- upload_token: MAIN_VIDEO 보존 + MEMBER_PHOTO 추가
 alter table upload_token
     drop constraint chk_upload_token_asset_kind;
 alter table upload_token
     add constraint chk_upload_token_asset_kind
     check (asset_kind in ('INLINE_IMAGE','FILE_ATTACHMENT','MAIN_VIDEO','MEMBER_PHOTO'));
--- MAIN_VIDEO 보존, MEMBER_PHOTO 추가.
 ```
 
 ### 4.5 정규화 규칙 (검색 blind index) — 리뷰 #6 반영
@@ -305,7 +319,12 @@ fun unlinkPhoto()                   // photo_asset_id = null
 
 ### 5.4 `ChurchMemberAuditLog`
 
-append-only. 생성자에서 모든 필드 확정, setter 없음. `diff_enc`에 JSON 직렬화 결과 통째 암호화.
+append-only — 단, **DB 차원 강제는 두지 않는다 (결정 #7 반영)**. 보장 메커니즘은 코드 관례:
+- 엔티티에 setter 없음, `var` 없음 (모든 필드 `val`)
+- 리포지토리는 `save`(INSERT)와 `findAll*` 등 조회만 노출. `delete*`·`saveAndFlush` 같은 변경/삭제 메서드를 막지는 않지만 호출 지점 0개로 유지
+- 향후 운영에서 강한 보장이 필요해지면 V9에서 `update`/`delete` 방지 trigger 추가하는 형태로 확장 가능
+
+`diff_enc`에 JSON 직렬화 결과 통째 암호화.
 
 ## 6. API
 
@@ -344,21 +363,26 @@ GET /api/v1/admin/members/{id}/photo
 
 저장 시점에 `LocalAttachmentStorage.buildStoredPath`가 `kind == MEMBER_PHOTO`이면 `member-photos/YYYY/MM/UUID.ext` prefix로 저장. nginx는 `/upload/member-photos/`를 deny — 즉 외부 URL로는 절대 접근 불가하고 오직 위 엔드포인트만 노출한다.
 
-### 6.3 사진 attach 생명주기 (리뷰 #3 반영)
+### 6.3 사진 attach 생명주기 (리뷰 #3·#5·#6 반영)
 
 기존 `UploadAssetService`가 업로드 직후 자산을 **`detached_at = now()`** 상태로 저장하고, 게시판은 attach 시 `detached_at = null`로 전환한다. 멤버 사진도 이 모델을 그대로 따른다.
 
-**attach 검증 (`ChurchMemberPhotoService.replacePhoto`)**:
+**attach 검증 (`ChurchMemberPhotoService.replacePhoto(member, assetId, actorId)`)**:
 - `assetId`로 자산 조회 — 없으면 `NotFoundException`
 - `asset.kind == MEMBER_PHOTO` — 아니면 `IllegalArgumentException`
 - `asset.detachedAt != null` — null이면 "이미 다른 곳에 사용 중", `IllegalArgumentException`
-- `church_member.photo_asset_id`의 UNIQUE 제약이 "다른 멤버에 이미 연결됨"을 DB 차원에서 보장 (중복 시 `DataIntegrityViolationException` → 400으로 변환)
+- **`asset.uploadedByActorId == actorId`** — 아니면 `ForbiddenException`. 다른 관리자가 올린 detached 자산을 가로채는 것 방지 (`BoardAdminService:316` 패턴과 동일, 리뷰 #3 반영)
+- `church_member.photo_asset_id`의 UNIQUE 제약이 "다른 멤버에 이미 연결됨"을 DB 차원에서 보장. **`DataIntegrityViolationException`은 서비스에서 try-catch로 잡아 `IllegalArgumentException("이미 다른 교인에 연결된 사진입니다.")`로 변환** — 전역 핸들러에 추가 매핑 도입하지 않음 (모듈 격리, 리뷰 #5 반영)
 - 검증 통과 시: 기존 멤버 자산이 있으면 그 자산의 `detached_at = now()` 세팅 → 새 자산의 `detached_at = null`, `post_id = null` 유지 → 멤버의 `photo_asset_id = 새 자산 id`
+- **`audit_writer.recordUpdate(memberId, actorId, before, after)`** 호출 — `photoAssetId` 변경이 diff에 포함됨 (리뷰 #6 반영)
 
 **detach (`removePhoto`)**:
 - `member.photo_asset_id`가 가리키는 자산의 `detached_at = now()` 세팅
 - `member.photo_asset_id = null`
 - 실제 파일 삭제는 기존 `PostAssetCleanupService` 스케줄러가 처리
+- **`audit_writer.recordUpdate`** 호출하여 photoAssetId의 `[id, null]` diff 기록
+
+attach·detach 모두 멤버 인적사항 변경과 동일하게 audit log를 남긴다 — 얼굴 사진은 교적 정보의 일부.
 
 ### 6.4 목록 쿼리 파라미터
 
@@ -426,22 +450,61 @@ ChurchMemberPhotoStreamer           loadForResponse(memberId, actorId): Streamed
 - 멤버 변경 + audit + 사진 정리는 단일 트랜잭션
 - 낙관적 락 미도입. last-write-wins, audit log로 사후 추적
 
-### 7.4 active admin 검증 (리뷰 #9 반영)
+### 7.4 active admin 검증 (리뷰 #9·#11 반영)
 
-`AdminAuthInterceptor`는 JWT만 검증하고 `admin_account.active` 상태는 확인하지 않는다. 이 모듈은 PII를 다루므로 추가 가드를 둔다.
+`AdminAuthInterceptor`는 JWT만 검증하고 `admin_account.active` 상태는 확인하지 않는다 (`AdminAuthInterceptor.kt:26`). 이 모듈은 PII를 다루므로 추가 가드를 둔다.
 
-**범위 결정**: 인터셉터 자체 수정은 본 모듈 범위 밖(다른 어드민 API도 영향). 대신 **`ChurchMemberAdminService` 진입점마다 `ActiveAdminGuard.verify(actorId)`** 를 호출하는 패턴.
+**범위 결정**: 인터셉터 자체 수정은 본 모듈 범위 밖(다른 어드민 API도 영향). 대신 `common.security.ActiveAdminGuard`를 신규로 두고 **두 군데**에서 호출:
 
-```
-ActiveAdminGuard (common 또는 member.application)
-  fun verify(actorId: Long) {
-    val admin = adminAccountRepo.findById(actorId)
-      ?: throw UnauthorizedException("관리자 계정을 찾을 수 없습니다.")
-    if (!admin.active) throw ForbiddenException("비활성 관리자입니다.")
-  }
+1. **`ChurchMemberAdminService` 모든 진입점** — read·write 모두
+2. **`UploadAdminController.issueToken`** — `kind == MEMBER_PHOTO`일 때만 호출 (다른 kind는 기존 동작 유지, board·video 모듈 영향 0)
+
+```kotlin
+// common/security/ActiveAdminGuard.kt
+@Component
+class ActiveAdminGuard(private val adminAccountRepository: AdminAccountRepository) {
+    fun verify(actorId: Long) {
+        val admin = adminAccountRepository.findById(actorId).orElse(null)
+            ?: throw UnauthorizedException("관리자 계정을 찾을 수 없습니다.")
+        if (!admin.active) throw ForbiddenException("비활성 관리자입니다.")
+    }
+}
 ```
 
 audit log 조회(`listAuditLogs`)도 동일 가드 통과한 admin만 허용. 권한 롤 세분화(super-admin만 audit 조회 등)는 Phase 1 비범위(PRD §4 callout과 동일 결정).
+
+### 7.5 검색 PII redaction (리뷰 #9 반영)
+
+`RequestLoggingFilter.kt:49-52`가 query string 전체를 INFO 레벨로 기록하므로, `name=김철수&phone=01012345678` 같은 검색이 access 로그에 평문으로 남는다. blind index를 써도 운영 로그에서 평문이 새는 셈.
+
+**해결**: `buildRequestPath`에 path-aware redaction을 추가한다.
+
+- **redaction 대상 path**: `/api/v1/admin/members`로 시작하는 모든 경로 (목록·상세·사진·audit 포함)
+- **redaction 대상 파라미터 키**: `name`, `phone` (대소문자 무시)
+- **방식**: query string을 파싱하여 해당 키의 값만 `[REDACTED]`로 치환하고 나머지(예: `status`, `page`, `size`)는 유지
+
+검색을 POST body로 전환하는 옵션은 채택하지 않는다 — REST 컨벤션과 캐싱·북마크 UX, 다른 모듈과의 컨벤션 정합이 깨짐. 필터 한 곳 수정이 보다 가성비 좋다.
+
+### 7.6 MEMBER_PHOTO 업로드 정책 강제 (리뷰 #4·#10 반영)
+
+`UploadTokenService.issueToken`은 인자로 받은 `allowedMimeTypes`·`maxByteSize`를 그대로 저장한다 (클라이언트가 보낸 값 신뢰). `LocalAttachmentStorage.detectMimeType`은 PDF까지 받는다. 회원 사진은 별도 정책을 서버가 강제한다.
+
+**`MemberPhotoUploadPolicy` 상수** (`common.security`):
+```kotlin
+object MemberPhotoUploadPolicy {
+    val ALLOWED_MIME = listOf("image/jpeg", "image/png", "image/webp")
+    const val MAX_BYTES = 5L * 1024 * 1024   // 5 MiB
+}
+```
+
+**`UploadAdminController.issueToken` 수정 로직**:
+```kotlin
+val effectiveMimes = if (request.kind == PostAssetKind.MEMBER_PHOTO) MemberPhotoUploadPolicy.ALLOWED_MIME else request.allowedMimeTypes
+val effectiveMax  = if (request.kind == PostAssetKind.MEMBER_PHOTO) MemberPhotoUploadPolicy.MAX_BYTES else request.maxByteSize
+// 그 후 uploadTokenService.issueToken(..., kind, effectiveMax, effectiveMimes)
+```
+
+이렇게 하면 PDF·과대 파일 업로드가 토큰 단에서 차단되고, 후속 `LocalAttachmentStorage.detectMimeType`이 PDF 처리 분기로 빠지더라도 토큰 화이트리스트와 MIME 매칭 검증(`UploadTokenService.validateAndConsume` line 65)에서 막힌다 — **이중 안전망**.
 
 ## 8. 테스트 전략
 
@@ -464,7 +527,8 @@ audit log 조회(`listAuditLogs`)도 동일 가드 통과한 admin만 허용. �
 - **`BoardSchemaContractTest` 갱신**: 21-29번 `containsExactly` 목록에 `"V8__create_church_member_registry.sql"` 추가. V1 기준 단언은 그대로 유지.
 - **`MemberSchemaContractTest` 신규**: V8 마이그레이션 적용 결과 검증
   - 테이블·인덱스·CHECK 제약·trigger 존재
-  - `post_asset` / `upload_token` CHECK가 `MAIN_VIDEO`를 보존하면서 `MEMBER_PHOTO`를 포함
+  - **`post_asset` CHECK는 `INLINE_IMAGE`·`FILE_ATTACHMENT`·`MEMBER_PHOTO`만 (MAIN_VIDEO 포함되지 않음)** — 리뷰 #7
+  - **`upload_token` CHECK는 4종 모두 (`MAIN_VIDEO` 보존 + `MEMBER_PHOTO` 신규)** — 리뷰 #7
   - audit log FK가 `on delete restrict`
 - **`ChurchMemberRepositoryContractTest`**: 
   - raw SQL로 `name_enc` / `phone_enc` / `birth_date_enc` / `address_enc` / `address_detail_enc` / `job_enc` / `email_enc` / `memo_enc` / `confess_date_enc` 등 모든 `_enc` 컬럼이 평문을 포함하지 않음
@@ -472,6 +536,13 @@ audit log 조회(`listAuditLogs`)도 동일 가드 통과한 admin만 허용. �
   - blind index 정확일치 검색 동작 (정규화 적용)
   - `photo_asset_id` UNIQUE — 같은 자산을 두 멤버에 연결 시 `DataIntegrityViolationException`
 - **`EnvironmentConfigContractTest` 갱신**: `HAPPYZION_PII_ENCRYPTION_KEYS`, `HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID`, `HAPPYZION_PII_HASH_KEY` 키 계약 추가
+- **`RequestLoggingFilterTest` 추가 (PII redaction)**:
+  - `/api/v1/admin/members?name=김철수&phone=01012345678&page=0` 요청 로그 라인이 `name`/`phone` 값에 평문 미포함, `page=0`은 그대로 노출
+  - 다른 path(`/api/v1/admin/boards/...`)는 query 무손실 — 회귀 방지
+- **`UploadAdminController` 테스트 갱신**:
+  - `kind = MEMBER_PHOTO` + 비활성 admin → 403
+  - `kind = MEMBER_PHOTO` + 클라이언트가 `allowedMimeTypes = ["application/pdf"]` 보내도 토큰의 `allowed_mime_types`는 서버 상수 3종으로 override됨
+  - `kind = INLINE_IMAGE`는 active 가드·정책 override 없이 기존 동작 유지 (회귀 방지)
 
 ### 8.3 컨트롤러 테스트 (MockMvc)
 
@@ -489,10 +560,12 @@ PRD §3 비범위 + 추가:
 - 생년월일 정렬·범위 검색 (`birth_date_enc` 암호화)
 - 신앙정보 필드 단위 통계
 - Hibernate Envers 등 자동 감사
+- audit log append-only DB trigger 강제 (앱 관례로만 보장, V9에서 도입 가능)
 - 교적부 권한 롤 분리 (PRD §4 callout)
-- `AdminAuthInterceptor` 자체에 active admin 검증 도입 (다른 모듈 영향 범위로 별도 과제)
+- `AdminAuthInterceptor` 자체에 active admin 검증 도입 (다른 모듈 영향 범위로 별도 과제. 교적부·MEMBER_PHOTO 경로는 `ActiveAdminGuard`로 커버)
 - 키 회전 자동화 배치 (수동 절차만 문서화)
 - 사진 별도 비공개 저장소(S3 등) 이전
+- 검색 PII 외 다른 파라미터(예: 향후 추가될 `email`, `birthDate` 등) redaction (현재 결정 #9는 `name`·`phone` 두 키만 처리)
 
 ## 10. Phase 2 (변경 없음)
 
