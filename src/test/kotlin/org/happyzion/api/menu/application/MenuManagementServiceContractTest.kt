@@ -128,7 +128,7 @@ class MenuManagementServiceContractTest {
             )
         }
             .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("DRAFT 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
+            .hasMessageContaining("분류 대기 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
     }
 
     @Test

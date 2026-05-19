@@ -17,6 +17,7 @@ import org.happyzion.api.menu.infrastructure.persistence.MenuItemRepository
 import org.happyzion.api.menu.infrastructure.persistence.MenuRevisionRepository
 import org.happyzion.api.youtube.application.PlaylistDisplayableVideoCountResolver
 import org.happyzion.api.youtube.domain.YouTubeContentForm
+import org.happyzion.api.youtube.domain.YouTubeSyncStatus
 import org.happyzion.api.youtube.infrastructure.persistence.YouTubePlaylistRepository
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
@@ -172,11 +173,11 @@ class MenuManagementService(
                 }
 
                 if (node.status == MenuStatus.ARCHIVED && !node.isAuto) {
-                    throw IllegalArgumentException("ARCHIVED 상태는 자동 유튜브 메뉴에만 사용할 수 있습니다.")
+                    throw IllegalArgumentException("보관 상태는 자동 유튜브 메뉴에만 사용할 수 있습니다.")
                 }
 
                 if (node.status == MenuStatus.DRAFT && !node.isAuto) {
-                    throw IllegalArgumentException("DRAFT 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
+                    throw IllegalArgumentException("분류 대기 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
                 }
 
                 validatePlacement(
@@ -373,20 +374,27 @@ class MenuManagementService(
 
     private fun normalizeStatus(node: MenuTreeNodeInput, existing: MenuItem, parentId: Long?): MenuStatus {
         if (existing.isAuto && existing.status == MenuStatus.ARCHIVED && node.status != MenuStatus.ARCHIVED) {
-            throw IllegalArgumentException("ARCHIVED 상태는 유튜브 동기화로만 해제됩니다.")
+            throw IllegalArgumentException("보관 상태는 유튜브 동기화로만 해제됩니다.")
         }
 
         if (!existing.isAuto && node.status == MenuStatus.DRAFT) {
-            throw IllegalArgumentException("DRAFT 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
+            throw IllegalArgumentException("분류 대기 상태는 자동 유튜브 메뉴 최초 동기화에만 사용할 수 있습니다.")
         }
 
         if (existing.type == MenuType.YOUTUBE_PLAYLIST && node.status == MenuStatus.PUBLISHED && parentId == null) {
             throw IllegalArgumentException("유튜브 재생목록은 그룹을 지정한 뒤에만 노출할 수 있습니다.")
         }
 
+        if (existing.type == MenuType.YOUTUBE_PLAYLIST && node.status == MenuStatus.PUBLISHED) {
+            val playlist = existing.playlistId?.let { youTubePlaylistRepository.findByIdOrNull(it) }
+            if (playlist?.syncStatus == org.happyzion.api.youtube.domain.YouTubeSyncStatus.REMOVED) {
+                throw IllegalArgumentException("유튜브에서 제거된 재생목록은 공개할 수 없습니다.")
+            }
+        }
+
         return when {
             existing.isAuto -> node.status
-            node.status == MenuStatus.ARCHIVED -> throw IllegalArgumentException("ARCHIVED 상태는 자동 유튜브 메뉴에만 사용할 수 있습니다.")
+            node.status == MenuStatus.ARCHIVED -> throw IllegalArgumentException("보관 상태는 자동 유튜브 메뉴에만 사용할 수 있습니다.")
             else -> node.status
         }
     }
