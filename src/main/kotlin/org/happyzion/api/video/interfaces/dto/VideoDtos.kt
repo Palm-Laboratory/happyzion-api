@@ -62,7 +62,6 @@ data class PublicVideoDetailResponse(
     val thumbnailUrl: String?,
     val scriptureReference: String?,
     val scriptureBody: String?,
-    val messageBody: String?,
     val summary: String?,
     val description: String?,
     val contentForm: YouTubeContentForm,
@@ -99,9 +98,7 @@ data class AdminVideoDetailResponse(
     val hidden: Boolean,
     val scriptureReference: String?,
     val scriptureBody: String?,
-    val messageBody: String?,
     val summary: String?,
-    val thumbnailOverrideUrl: String?,
     val contentForm: YouTubeContentForm,
     val publicHref: String?,
 )
@@ -113,9 +110,7 @@ data class UpdateVideoMetaRequest(
     val hidden: Boolean = false,
     val scriptureReference: String? = null,
     val scriptureBody: String? = null,
-    val messageBody: String? = null,
     val summary: String? = null,
-    val thumbnailOverrideUrl: String? = null,
 )
 
 fun PublicVideoSummary.toDto(): PublicVideoSummaryDto =
@@ -168,7 +163,6 @@ fun PublicVideoDetail.toDto(): PublicVideoDetailResponse =
         thumbnailUrl = thumbnailUrl,
         scriptureReference = scriptureReference,
         scriptureBody = scriptureBody,
-        messageBody = messageBody,
         summary = summary,
         description = description,
         contentForm = contentForm,
@@ -203,9 +197,7 @@ fun AdminVideoDetail.toDto(): AdminVideoDetailResponse =
         hidden = hidden,
         scriptureReference = scriptureReference,
         scriptureBody = scriptureBody,
-        messageBody = messageBody,
         summary = summary,
-        thumbnailOverrideUrl = thumbnailOverrideUrl,
         contentForm = contentForm,
         publicHref = publicHref,
     )
@@ -218,7 +210,5 @@ fun UpdateVideoMetaRequest.toCommand(): UpdateVideoMetaCommand =
         hidden = hidden,
         scriptureReference = scriptureReference,
         scriptureBody = scriptureBody,
-        messageBody = messageBody,
         summary = summary,
-        thumbnailOverrideUrl = thumbnailOverrideUrl,
     )

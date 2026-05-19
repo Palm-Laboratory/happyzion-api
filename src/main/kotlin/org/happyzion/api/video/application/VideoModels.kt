@@ -48,7 +48,6 @@ data class PublicVideoDetail(
     val thumbnailUrl: String?,
     val scriptureReference: String?,
     val scriptureBody: String?,
-    val messageBody: String?,
     val summary: String?,
     val description: String?,
     val contentForm: YouTubeContentForm,
@@ -81,9 +80,7 @@ data class AdminVideoDetail(
     val hidden: Boolean,
     val scriptureReference: String?,
     val scriptureBody: String?,
-    val messageBody: String?,
     val summary: String?,
-    val thumbnailOverrideUrl: String?,
     val contentForm: YouTubeContentForm,
     val publicHref: String?,
 )
@@ -95,7 +92,5 @@ data class UpdateVideoMetaCommand(
     val hidden: Boolean,
     val scriptureReference: String?,
     val scriptureBody: String?,
-    val messageBody: String?,
     val summary: String?,
-    val thumbnailOverrideUrl: String?,
 )
