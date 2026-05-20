@@ -30,4 +30,21 @@ interface ChurchMemberRepository : JpaRepository<ChurchMember, Long> {
         @Param("statuses") statuses: Set<ChurchMemberStatus>,
         pageable: Pageable,
     ): Page<ChurchMember>
+
+    @Query("""
+        select m from ChurchMember m
+        where (:phoneHash is null or m.phoneHash = :phoneHash)
+          and (:phoneLast4Hash is null or m.phoneLast4Hash = :phoneLast4Hash)
+          and (:faithStage is null or m.faithStage = :faithStage)
+          and (:cellLabel is null or m.cellLabel = :cellLabel)
+          and m.status in :statuses
+        order by m.registeredAt desc, m.id desc
+    """)
+    fun searchForNameFilter(
+        @Param("phoneHash") phoneHash: String?,
+        @Param("phoneLast4Hash") phoneLast4Hash: String?,
+        @Param("faithStage") faithStage: FaithStage?,
+        @Param("cellLabel") cellLabel: String?,
+        @Param("statuses") statuses: Set<ChurchMemberStatus>,
+    ): List<ChurchMember>
 }
