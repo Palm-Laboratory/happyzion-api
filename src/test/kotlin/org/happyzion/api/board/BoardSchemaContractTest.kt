@@ -27,7 +27,8 @@ class BoardSchemaContractTest {
             "V6__add_developer_role.sql",
             "V7__drop_member_registry.sql",
             "V8__create_church_member_registry.sql",
-            "V9__create_sms_log.sql",
+            "V9__drop_video_meta_unused_columns.sql",
+            "V10__create_sms_log.sql",
         )
     }
 

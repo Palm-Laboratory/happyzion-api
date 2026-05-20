@@ -187,10 +187,13 @@ class ChurchMemberAdminServiceTest {
             anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(),
             any<Set<ChurchMemberStatus>>(), any<Pageable>()
         )).thenReturn(emptyPage())
+        whenever(memberRepo.searchForNameFilter(
+            anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any<Set<ChurchMemberStatus>>()
+        )).thenReturn(emptyList())
     }
 
     @Test
-    fun `listMembers with name search produces nameHash via normalizer`() {
+    fun `listMembers with name search uses searchForNameFilter and filters in memory`() {
         stubEmptySearch()
 
         val filter = ChurchMemberSearchFilter(
@@ -200,16 +203,14 @@ class ChurchMemberAdminServiceTest {
         )
         service.listMembers(filter, actorId = 7L, page = 0, size = 10)
 
-        val expectedNameHash = hasher.hash(normalizer.forNameQuery("김철수")!!)
-        verify(memberRepo).search(
-            nameHash = eq(expectedNameHash),
+        verify(memberRepo).searchForNameFilter(
             phoneHash = isNull(),
             phoneLast4Hash = isNull(),
             faithStage = isNull(),
             cellLabel = isNull(),
             statuses = eq(ChurchMemberStatus.ACTIVE_SET),
-            pageable = any(),
         )
+        verify(memberRepo, never()).search(any(), any(), any(), any(), any(), any(), any())
     }
 
     @Test

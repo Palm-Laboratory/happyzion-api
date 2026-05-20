@@ -36,7 +36,7 @@ class SmsSchemaContractTest {
     }
 
     private fun readV9(): String =
-        Files.readString(Path.of("src/main/resources/db/migration/V9__create_sms_log.sql"))
+        Files.readString(Path.of("src/main/resources/db/migration/V10__create_sms_log.sql"))
             .lowercase()
             .replace(Regex("\\s+"), " ")
 }
