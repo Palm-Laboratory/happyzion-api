@@ -71,7 +71,7 @@ class ChurchMemberAdminControllerTest {
         )
         whenever(
             service.listMembers(any(), eq(42L), eq(0), eq(20))
-        ).thenReturn(ChurchMemberPage(items = listOf(summary), hasNext = false))
+        ).thenReturn(ChurchMemberPage(items = listOf(summary), hasNext = false, total = 1L))
 
         val response = controller.list(
             actorId = 42L,
