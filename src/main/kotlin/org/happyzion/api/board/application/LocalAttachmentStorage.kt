@@ -20,6 +20,35 @@ import javax.imageio.ImageIO
 private const val MAX_DIMENSION = 2048
 private const val MAX_PIXEL_COUNT = 80_000_000L
 
+private val ZIP_COMPATIBLE_MIMES = setOf(
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-zip",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+)
+
+private val OLE2_COMPATIBLE_MIMES = setOf(
+    "application/msword",
+    "application/vnd.ms-excel",
+    "application/vnd.ms-powerpoint",
+    "application/x-hwp",
+    "application/haansofthwp",
+    "application/vnd.hancom.hwp",
+)
+
+private val HWP_MIMES = setOf(
+    "application/x-hwp",
+    "application/haansofthwp",
+    "application/vnd.hancom.hwp",
+)
+
+private val RAR_MIMES = setOf(
+    "application/x-rar-compressed",
+    "application/vnd.rar",
+)
+
 @Component
 class LocalAttachmentStorage(
     private val rootPath: Path,
@@ -39,10 +68,10 @@ class LocalAttachmentStorage(
         }
 
         val bytes = file.bytes
-        val mimeType = detectMimeType(bytes)
-        require(mimeType == file.contentType) { "첨부파일 MIME 타입이 일치하지 않습니다." }
+        val declaredMime = (file.contentType ?: "").trim()
+        val effectiveMime = resolveAndVerifyMimeType(bytes, declaredMime)
 
-        val processedAttachment = processAttachment(bytes, mimeType)
+        val processedAttachment = processAttachment(bytes, effectiveMime)
         val extension = extensionForMimeType(processedAttachment.mimeType)
         val storedPath = buildStoredPath(kind, extension)
         val target = rootPath.resolve(storedPath)
@@ -145,14 +174,40 @@ class LocalAttachmentStorage(
         )
     }
 
-    private fun detectMimeType(bytes: ByteArray): String =
-        when {
-            isPng(bytes) -> "image/png"
-            isJpeg(bytes) -> "image/jpeg"
-            isWebp(bytes) -> "image/webp"
-            isPdf(bytes) -> "application/pdf"
-            else -> throw IllegalArgumentException("지원하지 않는 첨부파일 형식입니다.")
+    private fun resolveAndVerifyMimeType(bytes: ByteArray, declaredMime: String): String = when {
+        isPng(bytes) -> "image/png".also {
+            require(declaredMime == "image/png") { "첨부파일 MIME 타입이 일치하지 않습니다." }
         }
+        isJpeg(bytes) -> "image/jpeg".also {
+            require(declaredMime == "image/jpeg") { "첨부파일 MIME 타입이 일치하지 않습니다." }
+        }
+        isWebp(bytes) -> "image/webp".also {
+            require(declaredMime == "image/webp") { "첨부파일 MIME 타입이 일치하지 않습니다." }
+        }
+        isPdf(bytes) -> "application/pdf".also {
+            require(declaredMime == "application/pdf") { "첨부파일 MIME 타입이 일치하지 않습니다." }
+        }
+        isZipContainer(bytes) -> {
+            require(declaredMime in ZIP_COMPATIBLE_MIMES) { "첨부파일 MIME 타입이 일치하지 않습니다." }
+            declaredMime
+        }
+        isOle2Container(bytes) -> {
+            require(declaredMime in OLE2_COMPATIBLE_MIMES) { "첨부파일 MIME 타입이 일치하지 않습니다." }
+            declaredMime
+        }
+        isHwp5(bytes) -> {
+            require(declaredMime in HWP_MIMES) { "첨부파일 MIME 타입이 일치하지 않습니다." }
+            declaredMime
+        }
+        isRar(bytes) -> {
+            require(declaredMime in RAR_MIMES) { "첨부파일 MIME 타입이 일치하지 않습니다." }
+            declaredMime
+        }
+        is7z(bytes) -> "application/x-7z-compressed".also {
+            require(declaredMime == "application/x-7z-compressed") { "첨부파일 MIME 타입이 일치하지 않습니다." }
+        }
+        else -> throw IllegalArgumentException("지원하지 않는 첨부파일 형식입니다.")
+    }
 
     private fun extensionForMimeType(mimeType: String): String =
         when (mimeType) {
@@ -160,6 +215,16 @@ class LocalAttachmentStorage(
             "image/jpeg" -> "jpg"
             "image/webp" -> "webp"
             "application/pdf" -> "pdf"
+            "application/msword" -> "doc"
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> "docx"
+            "application/vnd.ms-excel" -> "xls"
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> "xlsx"
+            "application/vnd.ms-powerpoint" -> "ppt"
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation" -> "pptx"
+            "application/x-hwp", "application/haansofthwp", "application/vnd.hancom.hwp" -> "hwp"
+            "application/zip", "application/x-zip-compressed", "application/x-zip" -> "zip"
+            "application/x-rar-compressed", "application/vnd.rar" -> "rar"
+            "application/x-7z-compressed" -> "7z"
             else -> throw IllegalArgumentException("지원하지 않는 첨부파일 형식입니다.")
         }
 
@@ -211,6 +276,45 @@ class LocalAttachmentStorage(
             ((bytes[29].toInt() and 0xFF) shl 16)) + 1
         return width to height
     }
+
+    private fun isZipContainer(bytes: ByteArray): Boolean =
+        bytes.size >= 4 &&
+            bytes[0] == 0x50.toByte() &&
+            bytes[1] == 0x4B.toByte() &&
+            (bytes[2] == 0x03.toByte() || bytes[2] == 0x05.toByte() || bytes[2] == 0x07.toByte())
+
+    private fun isOle2Container(bytes: ByteArray): Boolean =
+        bytes.size >= 8 &&
+            bytes[0] == 0xD0.toByte() &&
+            bytes[1] == 0xCF.toByte() &&
+            bytes[2] == 0x11.toByte() &&
+            bytes[3] == 0xE0.toByte() &&
+            bytes[4] == 0xA1.toByte() &&
+            bytes[5] == 0xB1.toByte() &&
+            bytes[6] == 0x1A.toByte() &&
+            bytes[7] == 0xE1.toByte()
+
+    private fun isHwp5(bytes: ByteArray): Boolean =
+        bytes.size >= 17 &&
+            String(bytes, 0, 17, Charsets.US_ASCII) == "HWP Document File"
+
+    private fun isRar(bytes: ByteArray): Boolean =
+        bytes.size >= 6 &&
+            bytes[0] == 0x52.toByte() &&
+            bytes[1] == 0x61.toByte() &&
+            bytes[2] == 0x72.toByte() &&
+            bytes[3] == 0x21.toByte() &&
+            bytes[4] == 0x1A.toByte() &&
+            bytes[5] == 0x07.toByte()
+
+    private fun is7z(bytes: ByteArray): Boolean =
+        bytes.size >= 6 &&
+            bytes[0] == 0x37.toByte() &&
+            bytes[1] == 0x7A.toByte() &&
+            bytes[2] == 0xBC.toByte() &&
+            bytes[3] == 0xAF.toByte() &&
+            bytes[4] == 0x27.toByte() &&
+            bytes[5] == 0x1C.toByte()
 
     private fun isPng(bytes: ByteArray): Boolean =
         bytes.size >= 8 &&
