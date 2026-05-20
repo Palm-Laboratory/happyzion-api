@@ -60,11 +60,7 @@ class ChurchMember(
     @Convert(converter = EncryptedLocalDateConverter::class)
     var birthDate: LocalDate,
 
-<<<<<<< HEAD
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 1, columnDefinition = "varchar(1)")
-=======
     @Enumerated(EnumType.STRING) @Column(nullable = false, columnDefinition = "varchar(1)")
->>>>>>> feature/mission
     var sex: Sex,
 
     @Enumerated(EnumType.STRING) @Column(name = "birth_calendar", nullable = false, length = 10)
