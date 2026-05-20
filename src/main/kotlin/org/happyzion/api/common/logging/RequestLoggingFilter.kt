@@ -46,9 +46,28 @@ class RequestLoggingFilter : OncePerRequestFilter() {
         )
     }
 
-    private fun buildRequestPath(request: HttpServletRequest): String {
-        val queryString = request.queryString ?: return request.requestURI
-        return "${request.requestURI}?$queryString"
+    private fun buildRequestPath(request: HttpServletRequest): String =
+        buildRequestPathForTesting(request.requestURI, request.queryString)
+
+    internal fun buildRequestPathForTesting(uri: String, query: String?): String {
+        val q = query ?: return uri
+        return if (uri.startsWith("/api/v1/admin/members")) {
+            "$uri?${redactSensitive(q)}"
+        } else {
+            "$uri?$q"
+        }
+    }
+
+    private fun redactSensitive(query: String): String {
+        val keys = setOf("name", "phone")
+        return query.split('&').joinToString("&") { token ->
+            val eq = token.indexOf('=')
+            if (eq <= 0) return@joinToString token
+            val key = token.substring(0, eq)
+            val value = token.substring(eq + 1)
+            if (value.isEmpty()) return@joinToString token
+            if (keys.contains(key.lowercase())) "$key=[REDACTED]" else token
+        }
     }
 
     private fun resolveRequestId(request: HttpServletRequest): String =

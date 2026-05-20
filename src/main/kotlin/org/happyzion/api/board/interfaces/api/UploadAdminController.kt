@@ -1,10 +1,12 @@
 package org.happyzion.api.board.interfaces.api
 
 import jakarta.validation.Valid
+import org.happyzion.api.adminaccount.application.AdminAccountGuard
 import org.happyzion.api.board.application.UploadAssetService
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
 import org.happyzion.api.common.security.AdminAuthRequired
+import org.happyzion.api.common.security.MemberPhotoUploadPolicy
 import org.springframework.http.MediaType
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -20,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile
 class UploadAdminController(
     private val uploadTokenService: UploadTokenService,
     private val uploadAssetService: UploadAssetService,
+    private val adminAccountGuard: AdminAccountGuard,
 ) {
     @AdminAuthRequired
     @PostMapping("/token")
@@ -27,11 +30,18 @@ class UploadAdminController(
         @RequestAttribute("adminAccountId") actorId: Long,
         @Valid @RequestBody request: UploadTokenIssueRequest,
     ): UploadTokenIssueResponse {
+        val (effectiveMimes, effectiveMax) = if (request.kind == PostAssetKind.MEMBER_PHOTO) {
+            adminAccountGuard.verify(actorId)
+            MemberPhotoUploadPolicy.ALLOWED_MIME to MemberPhotoUploadPolicy.MAX_BYTES
+        } else {
+            request.allowedMimeTypes to request.maxByteSize
+        }
+
         val result = uploadTokenService.issueToken(
             actorId = actorId,
             kind = request.kind,
-            maxByteSize = request.maxByteSize,
-            allowedMimeTypes = request.allowedMimeTypes,
+            maxByteSize = effectiveMax,
+            allowedMimeTypes = effectiveMimes,
         )
 
         return UploadTokenIssueResponse(rawToken = result.rawToken)

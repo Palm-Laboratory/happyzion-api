@@ -24,6 +24,9 @@ class EnvironmentConfigContractTest {
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME=")
         assertThat(content).contains("CORS_ALLOWED_ORIGINS=")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_KEYS=")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID=")
+        assertThat(content).contains("HAPPYZION_PII_HASH_KEY=")
     }
 
     @Test
@@ -47,6 +50,9 @@ class EnvironmentConfigContractTest {
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD=")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME=")
         assertThat(content).contains("CORS_ALLOWED_ORIGINS=")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_KEYS=")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID=")
+        assertThat(content).contains("HAPPYZION_PII_HASH_KEY=")
     }
 
     @Test
@@ -65,6 +71,9 @@ class EnvironmentConfigContractTest {
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_PASSWORD: \${ADMIN_BOOTSTRAP_PASSWORD}")
         assertThat(content).doesNotContain("ADMIN_BOOTSTRAP_DISPLAY_NAME: \${ADMIN_BOOTSTRAP_DISPLAY_NAME}")
         assertThat(content).contains("CORS_ALLOWED_ORIGINS: \${CORS_ALLOWED_ORIGINS}")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_KEYS: \${HAPPYZION_PII_ENCRYPTION_KEYS}")
+        assertThat(content).contains("HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID: \${HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID}")
+        assertThat(content).contains("HAPPYZION_PII_HASH_KEY: \${HAPPYZION_PII_HASH_KEY}")
     }
 
     @Test

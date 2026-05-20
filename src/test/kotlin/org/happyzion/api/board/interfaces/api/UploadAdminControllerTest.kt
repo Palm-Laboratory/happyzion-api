@@ -1,14 +1,20 @@
 package org.happyzion.api.board.interfaces.api
 
+import org.happyzion.api.adminaccount.application.AdminAccountGuard
 import org.happyzion.api.board.application.UploadAssetService
 import org.happyzion.api.board.application.UploadedAssetResult
 import org.happyzion.api.board.application.UploadTokenIssueResult
 import org.happyzion.api.board.application.UploadTokenService
 import org.happyzion.api.board.domain.PostAssetKind
+import org.happyzion.api.common.error.ForbiddenException
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
@@ -19,12 +25,14 @@ class UploadAdminControllerTest {
 
     private val uploadTokenService: UploadTokenService = mock()
     private val uploadAssetService: UploadAssetService = mock()
+    private val adminAccountGuard: AdminAccountGuard = mock()
 
     @Test
     fun `issue token delegates to upload token service and returns raw token value`() {
         val controller = UploadAdminController(
             uploadTokenService = uploadTokenService,
             uploadAssetService = uploadAssetService,
+            adminAccountGuard = adminAccountGuard,
         )
         whenever(
             uploadTokenService.issueToken(
@@ -60,6 +68,7 @@ class UploadAdminControllerTest {
         val controller = UploadAdminController(
             uploadTokenService = uploadTokenService,
             uploadAssetService = uploadAssetService,
+            adminAccountGuard = adminAccountGuard,
         )
         val file = MockMultipartFile(
             "file",
@@ -115,6 +124,93 @@ class UploadAdminControllerTest {
             }
 
         assertThat(hasUploadTokenHeader).isFalse()
+    }
+
+    @Test
+    fun `MEMBER_PHOTO token issuance overrides client mime and size with server policy`() {
+        val controller = UploadAdminController(
+            uploadTokenService = uploadTokenService,
+            uploadAssetService = uploadAssetService,
+            adminAccountGuard = adminAccountGuard,
+        )
+        whenever(
+            uploadTokenService.issueToken(
+                actorId = eq(1L),
+                kind = eq(PostAssetKind.MEMBER_PHOTO),
+                maxByteSize = eq(5L * 1024 * 1024),
+                allowedMimeTypes = eq(listOf("image/jpeg", "image/png", "image/webp")),
+            )
+        ).thenReturn(UploadTokenIssueResult(rawToken = "photo-token"))
+
+        val response = controller.issueToken(
+            actorId = 1L,
+            request = UploadTokenIssueRequest(
+                kind = PostAssetKind.MEMBER_PHOTO,
+                maxByteSize = 50L * 1024 * 1024,
+                allowedMimeTypes = listOf("application/pdf"),
+            ),
+        )
+
+        assertThat(readTokenValue(response)).isEqualTo("photo-token")
+        verify(adminAccountGuard).verify(1L)
+        verify(uploadTokenService).issueToken(
+            actorId = 1L,
+            kind = PostAssetKind.MEMBER_PHOTO,
+            maxByteSize = 5L * 1024 * 1024,
+            allowedMimeTypes = listOf("image/jpeg", "image/png", "image/webp"),
+        )
+    }
+
+    @Test
+    fun `MEMBER_PHOTO token issuance for inactive admin throws ForbiddenException`() {
+        val controller = UploadAdminController(
+            uploadTokenService = uploadTokenService,
+            uploadAssetService = uploadAssetService,
+            adminAccountGuard = adminAccountGuard,
+        )
+        doThrow(ForbiddenException("비활성 관리자입니다.")).whenever(adminAccountGuard).verify(any())
+
+        assertThatThrownBy {
+            controller.issueToken(
+                actorId = 1L,
+                request = UploadTokenIssueRequest(
+                    kind = PostAssetKind.MEMBER_PHOTO,
+                    maxByteSize = 5L * 1024 * 1024,
+                    allowedMimeTypes = listOf("image/jpeg"),
+                ),
+            )
+        }.isInstanceOf(ForbiddenException::class.java)
+
+        verify(adminAccountGuard).verify(1L)
+        verifyNoInteractions(uploadTokenService)
+    }
+
+    @Test
+    fun `INLINE_IMAGE token issuance keeps client mime and size without guard check`() {
+        val controller = UploadAdminController(
+            uploadTokenService = uploadTokenService,
+            uploadAssetService = uploadAssetService,
+            adminAccountGuard = adminAccountGuard,
+        )
+        whenever(
+            uploadTokenService.issueToken(
+                actorId = eq(1L),
+                kind = eq(PostAssetKind.INLINE_IMAGE),
+                maxByteSize = eq(2L * 1024 * 1024),
+                allowedMimeTypes = eq(listOf("image/png")),
+            )
+        ).thenReturn(UploadTokenIssueResult(rawToken = "inline-token"))
+
+        controller.issueToken(
+            actorId = 1L,
+            request = UploadTokenIssueRequest(
+                kind = PostAssetKind.INLINE_IMAGE,
+                maxByteSize = 2L * 1024 * 1024,
+                allowedMimeTypes = listOf("image/png"),
+            ),
+        )
+
+        verify(adminAccountGuard, never()).verify(any())
     }
 
     private fun readTokenValue(response: Any): String {

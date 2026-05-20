@@ -131,7 +131,6 @@ data class YouTubeSyncResponse(
     val createdMenus: Int,
     val updatedMenus: Int,
     val archivedMenus: Int,
-    val restoredMenus: Int,
     val completedAt: String,
 )
 
@@ -244,6 +243,5 @@ fun YouTubeSyncSummary.toDto(): YouTubeSyncResponse =
         createdMenus = createdMenus,
         updatedMenus = updatedMenus,
         archivedMenus = archivedMenus,
-        restoredMenus = restoredMenus,
         completedAt = completedAt,
     )

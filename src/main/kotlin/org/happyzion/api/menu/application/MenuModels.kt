@@ -73,7 +73,6 @@ data class YouTubeSyncSummary(
     val createdMenus: Int,
     val updatedMenus: Int,
     val archivedMenus: Int,
-    val restoredMenus: Int,
     val completedAt: String,
 )
 

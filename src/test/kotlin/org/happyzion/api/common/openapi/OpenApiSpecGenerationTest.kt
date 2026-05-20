@@ -2,6 +2,7 @@ package org.happyzion.api.common.openapi
 
 import org.assertj.core.api.Assertions.assertThat
 import org.happyzion.api.adminaccount.application.AdminAccountAuthService
+import org.happyzion.api.adminaccount.application.AdminAccountGuard
 import org.happyzion.api.adminaccount.application.AdminAccountManagementService
 import org.happyzion.api.adminaccount.interfaces.api.AdminAccountController
 import org.happyzion.api.adminaccount.interfaces.api.AdminAuthController
@@ -22,6 +23,9 @@ import org.happyzion.api.mission.interfaces.api.MissionHistoryAdminController
 import org.happyzion.api.mission.interfaces.api.PublicMissionHistoryController
 import org.happyzion.api.site.application.SiteSettingService
 import org.happyzion.api.site.interfaces.api.SiteSettingController
+import org.happyzion.api.sms.application.SmsHistoryService
+import org.happyzion.api.sms.application.SmsSendService
+import org.happyzion.api.sms.interfaces.api.SmsAdminController
 import org.happyzion.api.video.application.VideoService
 import org.happyzion.api.video.interfaces.api.PublicVideoController
 import org.happyzion.api.video.interfaces.api.VideoAdminController
@@ -63,6 +67,7 @@ class OpenApiSpecGenerationTest {
     @MockitoBean private lateinit var videoService: VideoService
 
     // ── admin account ──────────────────────────────────────────────────────────
+    @MockitoBean private lateinit var adminAccountGuard: AdminAccountGuard
     @MockitoBean private lateinit var adminAccountManagementService: AdminAccountManagementService
     @MockitoBean private lateinit var adminAccountAuthService: AdminAccountAuthService
 
@@ -74,6 +79,10 @@ class OpenApiSpecGenerationTest {
 
     // ── site ───────────────────────────────────────────────────────────────────
     @MockitoBean private lateinit var siteSettingService: SiteSettingService
+
+    // ── sms ────────────────────────────────────────────────────────────────────
+    @MockitoBean private lateinit var smsSendService: SmsSendService
+    @MockitoBean private lateinit var smsHistoryService: SmsHistoryService
 
     @Test
     fun `generate full OpenAPI yaml`() {
@@ -96,6 +105,7 @@ class OpenApiSpecGenerationTest {
             .contains("/api/v1/admin/mission-history:")
             .contains("/api/v1/public/site/main-video:")
             .contains("/api/v1/admin/uploads/token:")
+            .contains("/api/v1/admin/sms")
             .doesNotContain("/api/v1/admin/members:")
 
         val outputPath = Path.of("build/openapi/openapi.yaml")
@@ -126,5 +136,6 @@ class OpenApiSpecGenerationTest {
     PublicMissionHistoryController::class,
     MissionHistoryAdminController::class,
     SiteSettingController::class,
+    SmsAdminController::class,
 )
 private class OpenApiSpecTestApplication

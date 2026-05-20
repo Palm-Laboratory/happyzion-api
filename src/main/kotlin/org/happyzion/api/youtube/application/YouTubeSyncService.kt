@@ -58,13 +58,17 @@ class YouTubeSyncService(
         val existingPlaylists = youTubePlaylistRepository.findAllByChannelId(channel.id!!)
         val existingByPlaylistId = existingPlaylists.associateBy { it.playlistId }
         val existingVideosByVideoId = youTubeVideoRepository.findAllByChannelId(channel.id).associateBy { it.videoId }
+        menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
+            .filter { it.type == MenuType.YOUTUBE_PLAYLIST && it.status == MenuStatus.ARCHIVED }
+            .forEach { menuItemRepository.delete(it) }
+
         val seenPlaylistIds = linkedSetOf<String>()
         val playlistItemsByPlaylistId = linkedMapOf<String, List<PlaylistItemPayload>>()
+        val videoContentFormByVideoId = linkedMapOf<String, YouTubeContentForm>()
 
         var createdMenus = 0
         var updatedMenus = 0
         var archivedMenus = 0
-        var restoredMenus = 0
 
         playlistPayloads.forEach { payload ->
             seenPlaylistIds += payload.playlistId
@@ -94,10 +98,16 @@ class YouTubeSyncService(
                 youTubePlaylistRepository.save(playlist)
             }
 
-            playlistItemsByPlaylistId[persistedPlaylist.playlistId] = fetchPlaylistItems(persistedPlaylist.playlistId)
+            val fetchedItems = fetchPlaylistItems(persistedPlaylist.playlistId)
+            playlistItemsByPlaylistId[persistedPlaylist.playlistId] = fetchedItems
 
             val menu = menuItemRepository.findAllByOrderBySortOrderAscIdAsc()
                 .firstOrNull { it.playlistId == persistedPlaylist.id }
+
+            val playlistContentForm = menu?.playlistContentForm ?: YouTubeContentForm.LONGFORM
+            fetchedItems.forEach { item ->
+                videoContentFormByVideoId.putIfAbsent(item.videoId, playlistContentForm)
+            }
 
             if (menu == null) {
                 menuItemRepository.save(
@@ -125,10 +135,6 @@ class YouTubeSyncService(
                         updatedMenus += 1
                     }
                 }
-                if (menu.status == MenuStatus.ARCHIVED && persistedPlaylist.syncStatus == YouTubeSyncStatus.ACTIVE) {
-                    menu.status = MenuStatus.DRAFT
-                    restoredMenus += 1
-                }
                 menuItemRepository.save(menu)
             }
         }
@@ -143,6 +149,7 @@ class YouTubeSyncService(
         allVideoIds.forEach { videoId ->
             val payload = videoPayloadsByVideoId[videoId] ?: return@forEach
             val existingVideo = existingVideosByVideoId[videoId]
+            val resolvedContentForm = videoContentFormByVideoId[videoId] ?: YouTubeContentForm.LONGFORM
             val persistedVideo = if (existingVideo == null) {
                 youTubeVideoRepository.save(
                     YouTubeVideo(
@@ -153,7 +160,7 @@ class YouTubeSyncService(
                         thumbnailUrl = payload.thumbnailUrl,
                         publishedAt = payload.publishedAt,
                         durationSeconds = payload.durationSeconds,
-                        contentForm = payload.contentForm,
+                        contentForm = resolvedContentForm,
                         privacyStatus = payload.privacyStatus,
                         syncStatus = YouTubeSyncStatus.ACTIVE,
                         lastSyncedAt = now,
@@ -165,7 +172,7 @@ class YouTubeSyncService(
                 existingVideo.thumbnailUrl = payload.thumbnailUrl
                 existingVideo.publishedAt = payload.publishedAt
                 existingVideo.durationSeconds = payload.durationSeconds
-                existingVideo.contentForm = payload.contentForm
+                existingVideo.contentForm = resolvedContentForm
                 existingVideo.privacyStatus = payload.privacyStatus
                 existingVideo.syncStatus = YouTubeSyncStatus.ACTIVE
                 existingVideo.lastSyncedAt = now
@@ -237,7 +244,6 @@ class YouTubeSyncService(
             createdMenus = createdMenus,
             updatedMenus = updatedMenus,
             archivedMenus = archivedMenus,
-            restoredMenus = restoredMenus,
             completedAt = now.toString(),
         )
     }
@@ -456,11 +462,6 @@ class YouTubeSyncService(
             thumbnailUrl = thumbnailUrl,
             publishedAt = snippet["publishedAt"]?.asText()?.let(OffsetDateTime::parse),
             durationSeconds = durationSeconds,
-            contentForm = if ((durationSeconds ?: Int.MAX_VALUE) <= 180) {
-                YouTubeContentForm.SHORTFORM
-            } else {
-                YouTubeContentForm.LONGFORM
-            },
             privacyStatus = privacyStatus,
         )
     }
@@ -528,6 +529,5 @@ private data class VideoPayload(
     val thumbnailUrl: String?,
     val publishedAt: OffsetDateTime?,
     val durationSeconds: Int?,
-    val contentForm: YouTubeContentForm,
     val privacyStatus: YouTubePrivacyStatus,
 )

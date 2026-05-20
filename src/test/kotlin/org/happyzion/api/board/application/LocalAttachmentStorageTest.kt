@@ -1,6 +1,7 @@
 package org.happyzion.api.board.application
 
 import org.happyzion.api.board.domain.PostAssetKind
+import org.happyzion.api.common.error.NotFoundException
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
@@ -191,6 +192,59 @@ class LocalAttachmentStorageTest {
             .hasMessageContaining("이미지 해상도")
 
         assertThat(childCount(root)).isEqualTo(0L)
+    }
+
+    @Test
+    fun `load returns Resource for stored file`() {
+        val storage = LocalAttachmentStorage(root)
+        val rel = "test/file.txt"
+        val abs = root.resolve(rel)
+        abs.parent.toFile().mkdirs()
+        abs.toFile().writeText("hi")
+
+        val resource = storage.load(rel)
+
+        assertThat(resource.contentAsByteArray.toString(Charsets.UTF_8)).isEqualTo("hi")
+    }
+
+    @Test
+    fun `load rejects path traversal with NotFoundException`() {
+        val storage = LocalAttachmentStorage(root)
+
+        assertThatThrownBy { storage.load("../../etc/passwd") }
+            .isInstanceOf(NotFoundException::class.java)
+    }
+
+    @Test
+    fun `load throws NotFoundException when file is missing`() {
+        val storage = LocalAttachmentStorage(root)
+
+        assertThatThrownBy { storage.load("doesnotexist.png") }
+            .isInstanceOf(NotFoundException::class.java)
+    }
+
+    @Test
+    fun `MEMBER_PHOTO storedPath uses member-photos prefix`() {
+        val storage = LocalAttachmentStorage(root)
+        val multipart = MockMultipartFile(
+            "file",
+            "photo.jpg",
+            "image/jpeg",
+            jpegBytes(),
+        )
+
+        val stored = storage.store(multipart, PostAssetKind.MEMBER_PHOTO, maxByteSize = 1_000_000)
+
+        assertThat(stored.storedPath).startsWith("member-photos/")
+    }
+
+    private fun jpegBytes(): ByteArray {
+        val image = java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_RGB)
+        image.setRGB(0, 0, java.awt.Color.RED.rgb)
+        return java.io.ByteArrayOutputStream().use { output ->
+            ImageIO.write(image, "jpeg", output)
+            output.toByteArray()
+        }
     }
 
     private fun pngBytes(width: Int = 1, height: Int = 1): ByteArray {

@@ -4,6 +4,8 @@ import org.happyzion.api.common.config.AdminProperties
 import org.happyzion.api.common.config.CorsProperties
 import org.happyzion.api.common.config.UploadProperties
 import org.happyzion.api.common.config.YouTubeProperties
+import org.happyzion.api.common.security.pii.PiiEncryptionProperties
+import org.happyzion.api.sms.infrastructure.client.AligoProperties
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
@@ -14,7 +16,9 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @EnableConfigurationProperties(
     value = [
         AdminProperties::class,
+        AligoProperties::class,
         CorsProperties::class,
+        PiiEncryptionProperties::class,
         UploadProperties::class,
         YouTubeProperties::class,
     ],

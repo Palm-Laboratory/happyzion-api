@@ -66,7 +66,6 @@ class VideoService(
             thumbnailUrl = effectiveThumbnailUrl(target.video, target.meta),
             scriptureReference = target.meta?.scriptureReference,
             scriptureBody = target.meta?.scriptureBody,
-            messageBody = target.meta?.messageBody,
             summary = target.meta?.summary,
             description = target.video.description,
             contentForm = target.video.contentForm,
@@ -154,9 +153,7 @@ class VideoService(
             hidden = meta?.hidden ?: false,
             scriptureReference = meta?.scriptureReference,
             scriptureBody = meta?.scriptureBody,
-            messageBody = meta?.messageBody,
             summary = meta?.summary,
-            thumbnailOverrideUrl = meta?.thumbnailOverrideUrl,
             contentForm = video.contentForm,
             publicHref = buildAdminPublicHref(video.id, video.videoId),
         )
@@ -175,9 +172,7 @@ class VideoService(
         meta.hidden = command.hidden
         meta.scriptureReference = command.scriptureReference?.trim()?.ifBlank { null }
         meta.scriptureBody = command.scriptureBody?.trim()?.ifBlank { null }
-        meta.messageBody = command.messageBody?.trim()?.ifBlank { null }
         meta.summary = command.summary?.trim()?.ifBlank { null }
-        meta.thumbnailOverrideUrl = command.thumbnailOverrideUrl?.trim()?.ifBlank { null }
 
         videoMetaRepository.save(meta)
         return getAdminVideoDetail(videoId)
@@ -278,8 +273,7 @@ class VideoService(
     private fun effectivePublishedAt(video: YouTubeVideo, meta: VideoMeta?): OffsetDateTime? =
         meta?.displayPublishedAt ?: video.publishedAt
 
-    private fun effectiveThumbnailUrl(video: YouTubeVideo, meta: VideoMeta?): String? =
-        meta?.thumbnailOverrideUrl ?: video.thumbnailUrl
+    private fun effectiveThumbnailUrl(video: YouTubeVideo, meta: VideoMeta?): String? = video.thumbnailUrl
 
     private fun buildPlaylistLinks(videoEntityId: Long, currentMenuId: Long): List<PublicVideoPlaylistLink> =
         run {

@@ -28,12 +28,8 @@ class VideoMeta(
     var scriptureReference: String? = null,
     @Column(name = "scripture_body")
     var scriptureBody: String? = null,
-    @Column(name = "message_body")
-    var messageBody: String? = null,
     @Column
     var summary: String? = null,
-    @Column(name = "thumbnail_override_url")
-    var thumbnailOverrideUrl: String? = null,
     @Column(name = "created_at", nullable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
     @Column(name = "updated_at", nullable = false)
