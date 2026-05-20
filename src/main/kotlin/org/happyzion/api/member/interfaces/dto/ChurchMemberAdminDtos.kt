@@ -53,7 +53,7 @@ data class ChurchMemberSummaryResponse(
     val id: Long, val name: String, val phone: String,
     val status: ChurchMemberStatus, val cellLabel: String?, val registeredAt: LocalDate,
 )
-data class ChurchMemberPageResponse(val items: List<ChurchMemberSummaryResponse>, val hasNext: Boolean)
+data class ChurchMemberPageResponse(val items: List<ChurchMemberSummaryResponse>, val hasNext: Boolean, val total: Long)
 
 data class ChurchMemberDetailResponse(
     val id: Long, val name: String, val phone: String, val email: String?,

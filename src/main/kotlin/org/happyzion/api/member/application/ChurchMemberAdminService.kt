@@ -138,7 +138,7 @@ class ChurchMemberAdminService(
         }
 
         if (filter.phone != null && phoneQuery == null) {
-            return ChurchMemberPage(emptyList(), false)
+            return ChurchMemberPage(emptyList(), false, 0L)
         }
 
         // 이름 검색은 암호화 필드라 LIKE 불가 → 전체 로드 후 인메모리 필터링
@@ -147,12 +147,13 @@ class ChurchMemberAdminService(
                 phoneHash = phoneHash, phoneLast4Hash = phoneLast4Hash,
                 faithStage = filter.faithStage, cellLabel = filter.cellLabel,
                 statuses = statuses,
-            ).filter { it.name.lowercase().contains(nameQuery!!) }
+            ).filter { it.name.lowercase().contains(nameQuery) }
             val from = page * size
             val slice = all.drop(from).take(size)
             return ChurchMemberPage(
                 items = slice.map { ChurchMemberSummary(it.id, it.name, it.phone, it.status, it.cellLabel, it.registeredAt) },
                 hasNext = from + size < all.size,
+                total = all.size.toLong(),
             )
         }
 
@@ -167,6 +168,7 @@ class ChurchMemberAdminService(
                 ChurchMemberSummary(it.id, it.name, it.phone, it.status, it.cellLabel, it.registeredAt)
             },
             hasNext = pageData.hasNext(),
+            total = pageData.totalElements,
         )
     }
 

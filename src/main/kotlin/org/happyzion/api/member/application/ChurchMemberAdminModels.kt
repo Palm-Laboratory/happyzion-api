@@ -32,7 +32,7 @@ data class ChurchMemberSummary(
     val cellLabel: String?, val registeredAt: LocalDate,
 )
 
-data class ChurchMemberPage(val items: List<ChurchMemberSummary>, val hasNext: Boolean)
+data class ChurchMemberPage(val items: List<ChurchMemberSummary>, val hasNext: Boolean, val total: Long)
 
 data class ChurchMemberDetail(
     val id: Long, val name: String, val phone: String, val email: String?,

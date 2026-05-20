@@ -34,6 +34,7 @@ class ChurchMemberAdminController(
         return ChurchMemberPageResponse(
             items = result.items.map { ChurchMemberSummaryResponse(it.id, it.name, it.phone, it.status, it.cellLabel, it.registeredAt) },
             hasNext = result.hasNext,
+            total = result.total,
         )
     }
 
