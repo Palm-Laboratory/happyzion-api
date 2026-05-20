@@ -1,7 +1,6 @@
 package org.happyzion.api.sms.infrastructure.client
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.springframework.context.annotation.Configuration
 import org.springframework.http.MediaType
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestClient
@@ -9,14 +8,6 @@ import org.springframework.web.client.RestClient
 // ─── Response DTOs ───────────────────────────────────────────────────────────
 
 data class AligoSendResult(
-    val msgId: String,
-    val successCnt: Int,
-    val errorCnt: Int,
-    val resultCode: Int,
-    val message: String,
-)
-
-data class AligoSendMassResult(
     val msgId: String,
     val successCnt: Int,
     val errorCnt: Int,
@@ -100,7 +91,7 @@ class AligoClient(
      * Content-Type: multipart/form-data
      * Auth fields are added automatically.
      */
-    fun sendMass(params: Map<String, String>): AligoSendMassResult {
+    fun sendMass(params: Map<String, String>): AligoSendResult {
         val form = buildAuthForm(params)
         val raw = restClient.post()
             .uri("/send_mass/")
@@ -110,7 +101,7 @@ class AligoClient(
             .body(AligoRawSendResponse::class.java)
             ?: throw AligoApiException(0, "Empty response from /send_mass/")
         if (raw.resultCode != 1) throw AligoApiException(raw.resultCode, raw.message)
-        return AligoSendMassResult(
+        return AligoSendResult(
             msgId = raw.msgId,
             successCnt = raw.successCnt,
             errorCnt = raw.errorCnt,
@@ -186,20 +177,3 @@ class AligoClient(
     }
 }
 
-// ─── Spring Configuration ─────────────────────────────────────────────────────
-
-@Configuration
-class AligoClientConfig {
-
-    @org.springframework.context.annotation.Bean
-    fun aligoRestClient(
-        builder: RestClient.Builder,
-        properties: AligoProperties,
-    ): RestClient = builder
-        .baseUrl(properties.baseUrl)
-        .build()
-
-    @org.springframework.context.annotation.Bean
-    fun aligoClient(restClient: RestClient, properties: AligoProperties): AligoClient =
-        AligoClient(restClient, properties)
-}

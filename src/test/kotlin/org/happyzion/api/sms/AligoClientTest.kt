@@ -1,6 +1,7 @@
 package org.happyzion.api.sms
 
 import org.assertj.core.api.Assertions.assertThat
+import org.hamcrest.Matchers.containsString
 import org.happyzion.api.sms.infrastructure.client.AligoApiException
 import org.happyzion.api.sms.infrastructure.client.AligoClient
 import org.happyzion.api.sms.infrastructure.client.AligoProperties
@@ -66,6 +67,7 @@ class AligoClientTest {
         server.expect(requestTo("https://apis.aligo.in/send/"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(content().contentTypeCompatibleWith(MediaType.MULTIPART_FORM_DATA))
+            .andExpect(content().string(containsString("testmode_yn")))
             .andRespond(
                 withSuccess(
                     """{"result_code":1,"message":"ok","msg_id":"12345","success_cnt":1,"error_cnt":0}""",
@@ -112,6 +114,7 @@ class AligoClientTest {
         server.expect(requestTo("https://apis.aligo.in/send_mass/"))
             .andExpect(method(HttpMethod.POST))
             .andExpect(content().contentTypeCompatibleWith(MediaType.MULTIPART_FORM_DATA))
+            .andExpect(content().string(containsString("testmode_yn")))
             .andRespond(
                 withSuccess(
                     """{"result_code":1,"message":"ok","msg_id":"99999","success_cnt":2,"error_cnt":0}""",
