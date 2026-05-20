@@ -43,7 +43,7 @@ class SmsLog(
     var id: Long = 0
         private set
 
-    @Column(name = "requested_at", nullable = false)
+    @Column(name = "requested_at", nullable = false, updatable = false)
     val requestedAt: OffsetDateTime = OffsetDateTime.now()
 
     @Column(name = "aligo_msg_id", length = 64)

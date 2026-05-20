@@ -1,4 +1,4 @@
-package org.happyzion.api.sms.domain
+package org.happyzion.api.sms.application
 
 data class SmsSendOutcome(
     val smsLogId: Long,

@@ -11,8 +11,6 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.happyzion.api.common.security.pii.EncryptedStringConverter
 
-enum class SmsRecipientStatus { PENDING, SENT, FAILED, UNKNOWN }
-
 @Entity
 @Table(name = "sms_log_recipient")
 class SmsLogRecipient(
