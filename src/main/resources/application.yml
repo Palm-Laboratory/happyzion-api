@@ -50,3 +50,13 @@ pii:
     keys: ${HAPPYZION_PII_ENCRYPTION_KEYS:}
     active-key-id: ${HAPPYZION_PII_ENCRYPTION_ACTIVE_KEY_ID:}
     hash-key: ${HAPPYZION_PII_HASH_KEY:}
+
+happyzion:
+  aligo:
+    base-url: https://apis.aligo.in
+    user-id: ${ALIGO_USER_ID:replace-me}
+    api-key: ${ALIGO_API_KEY:replace-me}
+    sender: ${ALIGO_SENDER:01012345678}
+    testmode: ${ALIGO_TESTMODE:true}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 10000
