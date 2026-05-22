@@ -13,6 +13,7 @@ import org.happyzion.api.mission.application.MissionYearSummary
 import org.happyzion.api.mission.application.MissionYearUpdateCommand
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
@@ -56,6 +57,14 @@ class MissionHistoryAdminController(
     ): MissionAdminYearDetailResponse =
         missionHistoryService.updateYear(actorId, yearId, request.toCommand()).toDetailResponse()
 
+    @PatchMapping("/reorder")
+    fun reorderYears(
+        @RequestAttribute("adminAccountId") actorId: Long,
+        @RequestBody request: MissionYearReorderRequest,
+    ) {
+        missionHistoryService.reorderYears(actorId, request.yearIds)
+    }
+
     @DeleteMapping("/{yearId}")
     fun deleteYear(
         @RequestAttribute("adminAccountId") actorId: Long,
@@ -64,6 +73,10 @@ class MissionHistoryAdminController(
         missionHistoryService.deleteYear(actorId, yearId)
     }
 }
+
+data class MissionYearReorderRequest(
+    val yearIds: List<Long>,
+)
 
 data class MissionYearCreateRequest(
     @field:NotBlank(message = "연도를 입력해 주세요.")

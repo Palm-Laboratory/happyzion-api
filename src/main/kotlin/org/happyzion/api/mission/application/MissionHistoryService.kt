@@ -87,6 +87,18 @@ class MissionHistoryService(
     }
 
     @Transactional
+    fun reorderYears(actorId: Long, yearIds: List<Long>) {
+        requireActiveAdmin(actorId)
+        val yearMap = missionYearRepository.findAllById(yearIds).associateBy { it.id!! }
+        val updated = yearIds.mapIndexed { index, id ->
+            val year = yearMap[id] ?: throw NotFoundException("선교 이력을 찾을 수 없습니다. id=$id")
+            year.sortOrder = index
+            year
+        }
+        missionYearRepository.saveAll(updated)
+    }
+
+    @Transactional
     fun deleteYear(actorId: Long, yearId: Long) {
         requireActiveAdmin(actorId)
         val year = requireYear(yearId)
