@@ -196,10 +196,23 @@ class BoardAdminService(
         menuId: Long? = command.menuId,
     ): BoardAdminPostSaveResult {
         val actor = requireActiveAdmin(actorId)
-        val board = requireBoard(boardSlug)
-        val post = requirePostInBoard(postId, board, menuId)
+        // boardSlug는 라우팅 컨텍스트일 뿐, 게시글 조회는 postId로만 수행
+        val post = postRepository.findByIdOrNull(postId)
+            ?: throw NotFoundException("게시글을 찾을 수 없습니다. id=$postId")
         requirePostEditPermission(actor, post)
         val savedPostId = post.id ?: throw IllegalStateException("게시글 id가 없습니다.")
+
+        // menuId(게시판)가 변경된 경우 boardId도 함께 갱신
+        val targetMenuId = menuId ?: post.menuId
+        if (targetMenuId != post.menuId) {
+            val targetBoardKey = menuItemRepository.findByIdOrNull(targetMenuId)?.boardKey
+                ?: throw NotFoundException("메뉴를 찾을 수 없습니다. menuId=$targetMenuId")
+            val targetBoardId = boardRepository.findBySlug(targetBoardKey)?.id
+                ?: throw NotFoundException("게시판을 찾을 수 없습니다. slug=$targetBoardKey")
+            post.menuId = targetMenuId
+            post.boardId = targetBoardId
+        }
+
         val assetIds = mergeAssetIds(
             contentValidator.validate(
                 contentJson = command.contentJson,
