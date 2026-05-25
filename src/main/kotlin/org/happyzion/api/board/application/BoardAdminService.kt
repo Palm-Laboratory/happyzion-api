@@ -196,12 +196,9 @@ class BoardAdminService(
         menuId: Long? = command.menuId,
     ): BoardAdminPostSaveResult {
         val actor = requireActiveAdmin(actorId)
-        val board = requireBoard(boardSlug)
+        requireBoard(boardSlug) // slug 유효성 확인용; 게시글은 postId 기준으로 조회
         val post = postRepository.findByIdOrNull(postId)
             ?: throw NotFoundException("게시글을 찾을 수 없습니다. id=$postId")
-        if (post.boardId != requireBoardId(board)) {
-            throw NotFoundException("게시글을 찾을 수 없습니다. id=$postId")
-        }
         requirePostEditPermission(actor, post)
         val savedPostId = post.id ?: throw IllegalStateException("게시글 id가 없습니다.")
 
