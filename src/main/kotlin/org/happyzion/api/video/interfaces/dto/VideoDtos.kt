@@ -67,6 +67,8 @@ data class PublicVideoDetailResponse(
     val contentForm: YouTubeContentForm,
     val playlists: List<PublicVideoPlaylistLinkDto>,
     val related: List<PublicVideoSummaryDto>,
+    val previousVideo: PublicVideoSummaryDto?,
+    val nextVideo: PublicVideoSummaryDto?,
     val shortformPlaylist: PublicShortformPlaylistWindowDto?,
 )
 
@@ -168,6 +170,8 @@ fun PublicVideoDetail.toDto(): PublicVideoDetailResponse =
         contentForm = contentForm,
         playlists = playlists.map { it.toDto() },
         related = related.map { it.toDto() },
+        previousVideo = previousVideo?.toDto(),
+        nextVideo = nextVideo?.toDto(),
         shortformPlaylist = shortformPlaylist?.toDto(),
     )
 

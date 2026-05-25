@@ -53,6 +53,8 @@ data class PublicVideoDetail(
     val contentForm: YouTubeContentForm,
     val playlists: List<PublicVideoPlaylistLink>,
     val related: List<PublicVideoSummary>,
+    val previousVideo: PublicVideoSummary?,
+    val nextVideo: PublicVideoSummary?,
     val shortformPlaylist: PublicShortformPlaylistWindow?,
 )
 

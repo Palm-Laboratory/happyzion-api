@@ -56,6 +56,16 @@ class VideoService(
         val related = orderedSummaries
             .filter { it.videoId != videoId }
             .take(6)
+        val previousVideo = if (targetIndex > 0) orderedSummaries[targetIndex - 1] else null
+        val nextVideo = if (targetIndex < orderedSummaries.lastIndex) orderedSummaries[targetIndex + 1] else null
+        val detailContentForm =
+            if (menu.playlistContentForm == YouTubeContentForm.SHORTFORM ||
+                target.video.contentForm == YouTubeContentForm.SHORTFORM
+            ) {
+                YouTubeContentForm.SHORTFORM
+            } else {
+                YouTubeContentForm.LONGFORM
+            }
 
         return PublicVideoDetail(
             videoId = target.video.videoId,
@@ -68,11 +78,13 @@ class VideoService(
             scriptureBody = target.meta?.scriptureBody,
             summary = target.meta?.summary,
             description = target.video.description,
-            contentForm = target.video.contentForm,
+            contentForm = detailContentForm,
             playlists = buildPlaylistLinks(target.video.id!!, menu.id!!),
             related = related,
+            previousVideo = previousVideo,
+            nextVideo = nextVideo,
             shortformPlaylist =
-                if (target.video.contentForm == YouTubeContentForm.SHORTFORM) {
+                if (detailContentForm == YouTubeContentForm.SHORTFORM) {
                     buildShortformPlaylistWindow(orderedSummaries, targetIndex)
                 } else {
                     null
