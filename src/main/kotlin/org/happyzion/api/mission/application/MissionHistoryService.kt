@@ -73,6 +73,24 @@ class MissionHistoryService(
     @Transactional
     fun updateYear(actorId: Long, yearId: Long, command: MissionYearUpdateCommand): MissionYearDetail {
         requireActiveAdmin(actorId)
+        return updateExistingYear(yearId, command)
+    }
+
+    @Transactional
+    fun updateYearsBatch(
+        actorId: Long,
+        commands: List<MissionYearBatchUpdateCommand>,
+        yearIds: List<Long>?,
+    ): List<MissionYearDetail> {
+        requireActiveAdmin(actorId)
+        val updatedYears = commands.map { updateExistingYear(it.yearId, it.command) }
+        if (yearIds != null) {
+            applyYearOrder(yearIds)
+        }
+        return updatedYears
+    }
+
+    private fun updateExistingYear(yearId: Long, command: MissionYearUpdateCommand): MissionYearDetail {
         val year = requireYear(yearId)
         year.year = command.year
         year.caption = command.caption
@@ -89,6 +107,10 @@ class MissionHistoryService(
     @Transactional
     fun reorderYears(actorId: Long, yearIds: List<Long>) {
         requireActiveAdmin(actorId)
+        applyYearOrder(yearIds)
+    }
+
+    private fun applyYearOrder(yearIds: List<Long>) {
         val yearMap = missionYearRepository.findAllById(yearIds).associateBy { it.id!! }
         val updated = yearIds.mapIndexed { index, id ->
             val year = yearMap[id] ?: throw NotFoundException("선교 이력을 찾을 수 없습니다. id=$id")

@@ -3,10 +3,12 @@ package org.happyzion.api.mission.interfaces.api
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Positive
 import jakarta.validation.constraints.Size
 import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.mission.application.MissionEntryCommand
 import org.happyzion.api.mission.application.MissionHistoryService
+import org.happyzion.api.mission.application.MissionYearBatchUpdateCommand
 import org.happyzion.api.mission.application.MissionYearCreateCommand
 import org.happyzion.api.mission.application.MissionYearDetail
 import org.happyzion.api.mission.application.MissionYearSummary
@@ -65,6 +67,19 @@ class MissionHistoryAdminController(
         missionHistoryService.reorderYears(actorId, request.yearIds)
     }
 
+    @PatchMapping("/batch")
+    fun saveBatch(
+        @RequestAttribute("adminAccountId") actorId: Long,
+        @Valid @RequestBody request: MissionYearBatchSaveRequest,
+    ): MissionAdminBatchSaveResponse =
+        MissionAdminBatchSaveResponse(
+            years = missionHistoryService.updateYearsBatch(
+                actorId = actorId,
+                commands = request.years.map { it.toCommand() },
+                yearIds = request.yearIds,
+            ).map { it.toDetailResponse() },
+        )
+
     @DeleteMapping("/{yearId}")
     fun deleteYear(
         @RequestAttribute("adminAccountId") actorId: Long,
@@ -77,6 +92,39 @@ class MissionHistoryAdminController(
 data class MissionYearReorderRequest(
     val yearIds: List<Long>,
 )
+
+data class MissionYearBatchSaveRequest(
+    @field:Valid
+    val years: List<MissionYearBatchUpdateRequest> = emptyList(),
+    val yearIds: List<Long>? = null,
+)
+
+data class MissionYearBatchUpdateRequest(
+    @field:Positive(message = "연도 id가 올바르지 않습니다.")
+    val id: Long,
+    @field:NotBlank(message = "연도를 입력해 주세요.")
+    @field:Size(max = 20, message = "연도는 20자 이내로 입력해 주세요.")
+    val year: String,
+    @field:NotBlank(message = "캡션을 입력해 주세요.")
+    @field:Size(max = 200, message = "캡션은 200자 이내로 입력해 주세요.")
+    val caption: String,
+    @field:Pattern(regexp = "gold|red", message = "색상은 gold 또는 red만 사용할 수 있습니다.")
+    val tone: String? = null,
+    val sortOrder: Int? = null,
+    @field:Valid
+    val entries: List<MissionEntryRequest> = emptyList(),
+) {
+    fun toCommand() = MissionYearBatchUpdateCommand(
+        yearId = id,
+        command = MissionYearUpdateCommand(
+            year = year,
+            caption = caption,
+            tone = tone,
+            sortOrder = sortOrder,
+            entries = entries.map { it.toCommand() },
+        ),
+    )
+}
 
 data class MissionYearCreateRequest(
     @field:NotBlank(message = "연도를 입력해 주세요.")
@@ -144,6 +192,10 @@ data class MissionEntryRequest(
 
 data class MissionAdminListYearsResponse(
     val years: List<MissionAdminYearSummaryResponse>,
+)
+
+data class MissionAdminBatchSaveResponse(
+    val years: List<MissionAdminYearDetailResponse>,
 )
 
 data class MissionAdminYearSummaryResponse(

@@ -66,4 +66,35 @@ class MissionHistoryAdminRequestValidationTest {
 
         assertThat(validator.validate(request)).isEmpty()
     }
+
+    @Test
+    fun `batch save request validates every nested year and entry before service execution`() {
+        val request = MissionYearBatchSaveRequest(
+            years = listOf(
+                MissionYearBatchUpdateRequest(
+                    id = 0,
+                    year = "",
+                    caption = "",
+                    tone = "purple",
+                    entries = listOf(
+                        MissionEntryRequest(
+                            month = "Foo",
+                            place = "",
+                        )
+                    ),
+                )
+            )
+        )
+
+        val messages = validator.validate(request).map { it.message }.toSet()
+
+        assertThat(messages).contains(
+            "연도 id가 올바르지 않습니다.",
+            "연도를 입력해 주세요.",
+            "캡션을 입력해 주세요.",
+            "색상은 gold 또는 red만 사용할 수 있습니다.",
+            "월은 Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec 중 하나여야 합니다.",
+            "나라/지역명을 입력해 주세요.",
+        )
+    }
 }

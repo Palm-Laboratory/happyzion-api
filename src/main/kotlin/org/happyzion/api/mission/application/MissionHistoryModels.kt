@@ -46,6 +46,11 @@ data class MissionYearUpdateCommand(
     val entries: List<MissionEntryCommand>,
 )
 
+data class MissionYearBatchUpdateCommand(
+    val yearId: Long,
+    val command: MissionYearUpdateCommand,
+)
+
 data class MissionEntryCommand(
     val month: String?,
     val place: String,
