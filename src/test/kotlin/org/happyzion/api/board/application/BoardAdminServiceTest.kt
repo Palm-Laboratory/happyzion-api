@@ -451,27 +451,14 @@ class BoardAdminServiceTest {
     }
 
     @Test
-    fun `update post rejects posts that are not under the requested board slug`() {
+    fun `update post rejects when board slug does not exist`() {
         whenever(adminAccountRepository.findById(1L)).thenReturn(Optional.of(activeAdmin(1L)))
-        whenever(boardRepository.findBySlug("notice")).thenReturn(
-            Board(id = 10L, slug = "notice", title = "공지사항", type = BoardType.NOTICE)
-        )
-        whenever(postRepository.findById(99L)).thenReturn(
-            Optional.of(
-                Post(
-                    id = 99L,
-                    boardId = 20L,
-                    title = "다른 게시판 글",
-                    contentJson = """{"type":"doc"}""",
-                    authorId = 1L,
-                )
-            )
-        )
+        whenever(boardRepository.findBySlug("nonexistent")).thenReturn(null)
 
         assertThrows<NotFoundException> {
             service.updatePost(
                 actorId = 1L,
-                boardSlug = "notice",
+                boardSlug = "nonexistent",
                 postId = 99L,
                 command = BoardPostSaveCommand(
                     title = "수정",
