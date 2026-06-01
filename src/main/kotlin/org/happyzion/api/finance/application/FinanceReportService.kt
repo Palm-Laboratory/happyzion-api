@@ -32,6 +32,8 @@ data class FinanceReportDetail(
     val sourceFilename: String,
     val uploadedBy: Long,
     val checksumMismatch: Boolean,
+    val formIncomeTotal: Long?,
+    val formExpenseTotal: Long?,
     val lines: List<FinanceLineSummary>,
     val unexecutedItems: List<FinanceUnexecutedSummary>,
     val createdAt: java.time.OffsetDateTime,
@@ -104,6 +106,8 @@ class FinanceReportService(
                 this.expenseTotal = parseResult.expenseTotal
                 this.balance = parseResult.balance
                 this.checksumMismatch = parseResult.checksumMismatch
+                this.formIncomeTotal = parseResult.formIncomeTotal
+                this.formExpenseTotal = parseResult.formExpenseTotal
             }
         } else {
             reportRepo.save(
@@ -115,6 +119,8 @@ class FinanceReportService(
                     sourceFilename = parseResult.sourceFilename,
                     uploadedBy = actorId,
                     checksumMismatch = parseResult.checksumMismatch,
+                    formIncomeTotal = parseResult.formIncomeTotal,
+                    formExpenseTotal = parseResult.formExpenseTotal,
                 )
             )
         }
@@ -149,6 +155,8 @@ class FinanceReportService(
             incomeTotal = report.incomeTotal, expenseTotal = report.expenseTotal, balance = report.balance,
             sourceFilename = report.sourceFilename, uploadedBy = report.uploadedBy,
             checksumMismatch = report.checksumMismatch,
+            formIncomeTotal = report.formIncomeTotal,
+            formExpenseTotal = report.formExpenseTotal,
             lines = lines, unexecutedItems = unexecutedItems, createdAt = report.createdAt,
         )
     }
@@ -180,6 +188,8 @@ class FinanceReportService(
             incomeTotal = report.incomeTotal, expenseTotal = report.expenseTotal, balance = report.balance,
             sourceFilename = report.sourceFilename, uploadedBy = report.uploadedBy,
             checksumMismatch = report.checksumMismatch,
+            formIncomeTotal = report.formIncomeTotal,
+            formExpenseTotal = report.formExpenseTotal,
             lines = lines, unexecutedItems = unexecuted, createdAt = report.createdAt,
         )
     }

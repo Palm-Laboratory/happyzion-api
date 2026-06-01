@@ -32,6 +32,14 @@ class FinanceReport(
 
     @Column(name = "checksum_mismatch", nullable = false)
     var checksumMismatch: Boolean = false,
+
+    /** 양식 합계셀(C70) 캐시값 — 불일치 시 차이 금액 표시용 */
+    @Column(name = "form_income_total")
+    var formIncomeTotal: Long? = null,
+
+    /** 양식 합계셀(G70) 캐시값 — 불일치 시 차이 금액 표시용 */
+    @Column(name = "form_expense_total")
+    var formExpenseTotal: Long? = null,
 ) {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0

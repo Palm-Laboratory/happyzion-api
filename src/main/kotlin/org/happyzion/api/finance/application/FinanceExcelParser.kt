@@ -122,9 +122,11 @@ class FinanceExcelParser {
         val incomeTotal = incomeLines.sumOf { it.amount }
         val expenseTotal = expenseLines.sumOf { it.amount }
 
-        // 5) 양식 합계셀 교차검증 (C70 = row 69, G70 = row 69)
-        val formIncome = numericValueOrNull(ws, "C70")
-        val formExpense = numericValueOrNull(ws, "G70")
+        // 5) 양식 합계셀 교차검증 — FormulaEvaluator로 직접 계산
+        // 캐시 여부와 무관하게 참조 셀 값으로 SUM을 직접 계산하므로 신뢰 가능
+        val evaluator = wb.creationHelper.createFormulaEvaluator()
+        val formIncome = evaluatedNumericValue(evaluator, ws, "C70")
+        val formExpense = evaluatedNumericValue(evaluator, ws, "G70")
         val checksumMismatch = (formIncome != null && formIncome != incomeTotal) ||
                 (formExpense != null && formExpense != expenseTotal)
 
@@ -176,8 +178,35 @@ class FinanceExcelParser {
         cell ?: return 0L
         return when (cell.cellType) {
             org.apache.poi.ss.usermodel.CellType.NUMERIC -> cell.numericCellValue.toLong()
-            org.apache.poi.ss.usermodel.CellType.FORMULA -> runCatching { cell.numericCellValue.toLong() }.getOrDefault(0L)
+            org.apache.poi.ss.usermodel.CellType.FORMULA -> {
+                // 수식 셀은 캐시된 결과값이 NUMERIC일 때만 읽음.
+                // 캐시가 없거나(real Excel로 저장 안 된 경우) 타입이 다르면 0 반환.
+                if (cell.cachedFormulaResultType == org.apache.poi.ss.usermodel.CellType.NUMERIC)
+                    runCatching { cell.numericCellValue.toLong() }.getOrDefault(0L)
+                else 0L
+            }
             else -> 0L
         }
+    }
+
+    /**
+     * FormulaEvaluator로 수식 셀을 직접 계산해 반환.
+     * 캐시 여부와 무관 — 참조 셀에 숫자가 있으면 SUM 등 계산 가능.
+     * 수식이 없거나 계산 실패 시 null → checksumMismatch 판정 안 함.
+     */
+    private fun evaluatedNumericValue(
+        evaluator: org.apache.poi.ss.usermodel.FormulaEvaluator,
+        ws: org.apache.poi.ss.usermodel.Sheet,
+        addr: String,
+    ): Long? {
+        val col = addr[0] - 'A'
+        val row = addr.substring(1).toInt() - 1
+        val cell = ws.getRow(row)?.getCell(col) ?: return null
+        return runCatching {
+            val result = evaluator.evaluate(cell) ?: return null
+            if (result.cellType == org.apache.poi.ss.usermodel.CellType.NUMERIC)
+                result.numberValue.toLong()
+            else null
+        }.getOrNull()
     }
 }

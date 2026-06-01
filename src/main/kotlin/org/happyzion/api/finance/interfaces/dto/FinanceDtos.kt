@@ -101,6 +101,9 @@ data class FinanceReportDetailResponse(
     val sourceFilename: String,
     val uploadedAt: OffsetDateTime,
     val checksumMismatch: Boolean,
+    /** 양식 합계셀 값 — 불일치 시 차이 금액 표시용 */
+    val formIncomeTotal: Long?,
+    val formExpenseTotal: Long?,
     val lines: List<FinanceLineResponse>,
     val unexecutedItems: List<FinanceUnexecutedItemResponse>,
 )
@@ -157,6 +160,8 @@ fun FinanceReportDetail.toDetailResponse() = FinanceReportDetailResponse(
     id = id, year = year, month = month, week = week,
     incomeTotal = incomeTotal, expenseTotal = expenseTotal, balance = balance,
     sourceFilename = sourceFilename, uploadedAt = createdAt, checksumMismatch = checksumMismatch,
+    formIncomeTotal = formIncomeTotal,
+    formExpenseTotal = formExpenseTotal,
     lines = lines.map { FinanceLineResponse(it.categoryId, it.direction.name, it.major, it.minor, it.amount) },
     unexecutedItems = unexecutedItems.map { FinanceUnexecutedItemResponse(it.id, it.content, it.amount, it.executedDate, it.note, it.sortOrder) },
 )
