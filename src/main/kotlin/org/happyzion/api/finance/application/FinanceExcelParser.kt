@@ -63,7 +63,7 @@ private val EXPENSE_CELL_MAP = listOf(
 )
 
 /** 미집행 품목 데이터행 (엑셀 1-based row index) */
-private val UNEXECUTED_ROWS = listOf(84, 86, 88, 90, 92, 94)
+private val UNEXECUTED_ROWS = listOf(84, 86, 88, 90, 92, 94, 96, 98, 100, 102)
 
 /** A1 기간 텍스트에서 연/월/주 추출 — 예: "2026년 5월 3주" */
 private val PERIOD_PATTERN = Regex("""(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*주""")
