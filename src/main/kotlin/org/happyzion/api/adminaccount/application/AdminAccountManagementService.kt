@@ -5,6 +5,7 @@ import org.happyzion.api.adminaccount.domain.AdminAccountRole
 import org.happyzion.api.adminaccount.infrastructure.persistence.AdminAccountRepository
 import org.happyzion.api.common.error.ForbiddenException
 import org.happyzion.api.common.error.NotFoundException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -134,7 +135,16 @@ class AdminAccountManagementService(
             throw ForbiddenException("슈퍼 관리자 계정은 삭제할 수 없습니다.")
         }
 
-        adminAccountRepository.delete(account)
+        if (adminAccountRepository.hasOperationalReferences(accountId)) {
+            throw IllegalArgumentException("운영 이력이 있는 관리자 계정은 삭제할 수 없습니다. 계정 상태를 비활성으로 변경해 주세요.")
+        }
+
+        try {
+            adminAccountRepository.delete(account)
+            adminAccountRepository.flush()
+        } catch (_: DataIntegrityViolationException) {
+            throw IllegalArgumentException("운영 이력이 있는 관리자 계정은 삭제할 수 없습니다. 계정 상태를 비활성으로 변경해 주세요.")
+        }
     }
 
     private fun requireSuperAdmin(actorId: Long) {

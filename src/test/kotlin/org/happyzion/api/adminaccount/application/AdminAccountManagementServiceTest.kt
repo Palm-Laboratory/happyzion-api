@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.never
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -15,6 +16,7 @@ import org.mockito.kotlin.whenever
 import java.time.OffsetDateTime
 import java.util.Optional
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.dao.DataIntegrityViolationException
 
 class AdminAccountManagementServiceTest {
 
@@ -257,7 +259,7 @@ class AdminAccountManagementServiceTest {
     }
 
     @Test
-    fun `delete admin account deletes normal admin`() {
+    fun `delete admin account permanently deletes unused normal admin`() {
         whenever(adminAccountRepository.findById(1L)).thenReturn(
             Optional.of(
                 AdminAccount(
@@ -284,6 +286,78 @@ class AdminAccountManagementServiceTest {
         service.deleteAdminAccount(actorId = 1L, accountId = 2L)
 
         verify(adminAccountRepository).delete(any())
+        verify(adminAccountRepository).flush()
+    }
+
+    @Test
+    fun `delete admin account rejects account with operational references`() {
+        whenever(adminAccountRepository.findById(1L)).thenReturn(
+            Optional.of(
+                AdminAccount(
+                    id = 1L,
+                    username = "super-admin",
+                    displayName = "슈퍼 관리자",
+                    passwordHash = "hash",
+                    role = AdminAccountRole.SUPER_ADMIN,
+                )
+            )
+        )
+        whenever(adminAccountRepository.findById(2L)).thenReturn(
+            Optional.of(
+                AdminAccount(
+                    id = 2L,
+                    username = "admin",
+                    displayName = "일반 관리자",
+                    passwordHash = "hash",
+                    role = AdminAccountRole.ADMIN,
+                )
+            )
+        )
+        whenever(adminAccountRepository.hasOperationalReferences(2L)).thenReturn(true)
+
+        val exception = assertThrows<Exception> {
+            service.deleteAdminAccount(actorId = 1L, accountId = 2L)
+        }
+
+        assertThat(exception.message).isEqualTo(
+            "운영 이력이 있는 관리자 계정은 삭제할 수 없습니다. 계정 상태를 비활성으로 변경해 주세요."
+        )
+        verify(adminAccountRepository, never()).delete(any())
+    }
+
+    @Test
+    fun `delete admin account reports operational references created during deletion`() {
+        whenever(adminAccountRepository.findById(1L)).thenReturn(
+            Optional.of(
+                AdminAccount(
+                    id = 1L,
+                    username = "super-admin",
+                    displayName = "슈퍼 관리자",
+                    passwordHash = "hash",
+                    role = AdminAccountRole.SUPER_ADMIN,
+                )
+            )
+        )
+        whenever(adminAccountRepository.findById(2L)).thenReturn(
+            Optional.of(
+                AdminAccount(
+                    id = 2L,
+                    username = "admin",
+                    displayName = "일반 관리자",
+                    passwordHash = "hash",
+                    role = AdminAccountRole.ADMIN,
+                )
+            )
+        )
+        doThrow(DataIntegrityViolationException("constraint")).whenever(adminAccountRepository).flush()
+
+        val exception = assertThrows<Exception> {
+            service.deleteAdminAccount(actorId = 1L, accountId = 2L)
+        }
+
+        assertThat(exception.message).isEqualTo(
+            "운영 이력이 있는 관리자 계정은 삭제할 수 없습니다. 계정 상태를 비활성으로 변경해 주세요."
+        )
     }
 
     @Test
