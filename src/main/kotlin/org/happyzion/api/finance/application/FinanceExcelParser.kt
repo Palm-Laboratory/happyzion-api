@@ -15,7 +15,11 @@ private val INCOME_CELL_MAP = listOf(
     Triple("특별헌금", "건축헌금", "C13"),
     Triple("특별헌금", "꽃헌금",   "C14"),
     Triple("특별헌금", "목적헌금", "C15"),
-    Triple("찬조헌금", "행사찬조", "C17"),
+)
+
+/** 소분류 항목명이 주마다 달라지는 동적 수입 구간 (대분류 → 행 범위, B=라벨 C=금액) */
+private val INCOME_DYNAMIC_RANGES = mapOf(
+    "찬조헌금" to (17..21),
 )
 
 private val EXPENSE_CELL_MAP = listOf(
@@ -106,11 +110,22 @@ class FinanceExcelParser {
             ParsedPeriod(it.groupValues[1].toInt(), it.groupValues[2].toInt(), it.groupValues[3].toInt())
         }
 
-        // 2) 수입 라인
-        val incomeLines = INCOME_CELL_MAP.map { (major, minor, addr) ->
+        // 2) 수입 라인 (고정 항목)
+        val incomeFixed = INCOME_CELL_MAP.map { (major, minor, addr) ->
             val amount = numericValue(ws, addr)
             ParsedLine(major, minor, amount, isIncome = true)
         }
+
+        // 동적 수입 항목 (B열=소분류명, C열=금액 — 빈 행 스킵)
+        val incomeDynamic = INCOME_DYNAMIC_RANGES.flatMap { (major, rows) ->
+            rows.mapNotNull { r ->
+                val minor = stringValue(ws, "B$r") ?: return@mapNotNull null
+                val amount = numericValue(ws, "C$r")
+                ParsedLine(major, minor, amount, isIncome = true)
+            }
+        }
+
+        val incomeLines = incomeFixed + incomeDynamic
 
         // 3) 지출 라인 (G열 금액 + I열 세부내역)
         val expenseLines = EXPENSE_CELL_MAP.map { (major, minor, addr) ->

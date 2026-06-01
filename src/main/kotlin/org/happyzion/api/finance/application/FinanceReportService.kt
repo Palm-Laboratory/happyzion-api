@@ -95,7 +95,7 @@ class FinanceReportService(
     ): FinanceReportDetail {
         // 카테고리 맵 (direction+major+minor → id)
         val categories = categoryRepo.findAllByActiveOrderBySortOrder()
-        val catMap = categories.associateBy { Triple(it.direction.name, it.major, it.minor) }
+        val catMap = categories.associateBy { Triple(it.direction.name, it.major, it.minor) }.toMutableMap()
 
         // 기존 보고서가 있으면 라인·미집행 삭제 후 재사용, 없으면 신규
         val existing = reportRepo.findByYearAndMonthAndWeek(year, month, week)
@@ -130,7 +130,13 @@ class FinanceReportService(
         val allLines = parseResult.incomeLines + parseResult.expenseLines
         val lines = allLines.mapNotNull { line ->
             val dir = if (line.isIncome) "INCOME" else "EXPENSE"
-            val cat = catMap[Triple(dir, line.major, line.minor)] ?: return@mapNotNull null
+            val key = Triple(dir, line.major, line.minor)
+            val cat = catMap[key] ?: run {
+                val direction = if (line.isIncome) FinanceDirection.INCOME else FinanceDirection.EXPENSE
+                val newCat = categoryRepo.save(FinanceCategory(direction = direction, major = line.major, minor = line.minor))
+                catMap[key] = newCat
+                newCat
+            }
             lineRepo.save(FinanceReportLine(reportId = report.id, categoryId = cat.id, amount = line.amount, detail = line.detail))
             FinanceLineSummary(cat.id, cat.direction, cat.major, cat.minor, line.amount, line.detail)
         }
@@ -142,7 +148,7 @@ class FinanceReportService(
                     reportId = report.id,
                     content = item.content,
                     amount = item.amount,
-                    executedDate = item.executedDate?.let { java.time.LocalDate.parse(it) },
+                    executedDate = item.executedDate?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() },
                     note = item.note,
                     sortOrder = idx,
                 )
