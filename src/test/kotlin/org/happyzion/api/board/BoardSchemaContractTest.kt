@@ -30,6 +30,7 @@ class BoardSchemaContractTest {
             "V9__drop_video_meta_unused_columns.sql",
             "V10__create_sms_log.sql",
             "V11__create_mission_trip.sql",
+            "V12__relax_mission_trip_type_constraint.sql",
         )
     }
 
