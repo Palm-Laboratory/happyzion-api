@@ -119,6 +119,7 @@ data class StatBucketResponse(
     val balance: Long,
     val incomeByMajor: List<MajorBreakdownResponse>,
     val expenseByMajor: List<MajorBreakdownResponse>,
+    val previousSummary: StatSummaryResponse?,
 )
 
 data class StatSummaryResponse(val incomeTotal: Long, val expenseTotal: Long, val balance: Long)
@@ -172,7 +173,8 @@ fun FinanceStatResult.toResponse() = FinanceStatResponse(
     buckets = buckets.map {
         StatBucketResponse(it.label, it.incomeTotal, it.expenseTotal, it.balance,
             it.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
-            it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) })
+            it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
+            it.previousSummary?.let { p -> StatSummaryResponse(p.incomeTotal, p.expenseTotal, p.balance) })
     },
     summary = StatSummaryResponse(summary.incomeTotal, summary.expenseTotal, summary.balance),
     previousSummary = previousSummary?.let { StatSummaryResponse(it.incomeTotal, it.expenseTotal, it.balance) },
