@@ -14,6 +14,9 @@ class FinanceReportLine(
 
     @Column(nullable = false)
     var amount: Long = 0,
+
+    @Column(length = 500)
+    var detail: String? = null,
 ) {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long = 0

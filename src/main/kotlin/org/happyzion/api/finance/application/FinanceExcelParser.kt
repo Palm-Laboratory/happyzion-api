@@ -69,7 +69,7 @@ private val UNEXECUTED_ROWS = listOf(84, 86, 88, 90, 92, 94)
 private val PERIOD_PATTERN = Regex("""(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*주""")
 
 data class ParsedPeriod(val year: Int, val month: Int, val week: Int)
-data class ParsedLine(val major: String, val minor: String, val amount: Long, val isIncome: Boolean)
+data class ParsedLine(val major: String, val minor: String, val amount: Long, val isIncome: Boolean, val detail: String? = null)
 data class ParsedUnexecutedItem(
     val content: String,
     val amount: Long,
@@ -112,10 +112,12 @@ class FinanceExcelParser {
             ParsedLine(major, minor, amount, isIncome = true)
         }
 
-        // 3) 지출 라인
+        // 3) 지출 라인 (G열 금액 + I열 세부내역)
         val expenseLines = EXPENSE_CELL_MAP.map { (major, minor, addr) ->
             val amount = numericValue(ws, addr)
-            ParsedLine(major, minor, amount, isIncome = false)
+            val detailAddr = "I" + addr.substring(1)
+            val detail = stringValue(ws, detailAddr)
+            ParsedLine(major, minor, amount, isIncome = false, detail = detail)
         }
 
         // 4) 합계 직접 합산
@@ -160,6 +162,12 @@ class FinanceExcelParser {
             formExpenseTotal = formExpense,
             checksumMismatch = checksumMismatch,
         )
+    }
+
+    private fun stringValue(ws: org.apache.poi.ss.usermodel.Sheet, addr: String): String? {
+        val col = addr[0] - 'A'
+        val row = addr.substring(1).toInt() - 1
+        return ws.getRow(row)?.getCell(col)?.stringCellValue?.trim()?.takeIf { it.isNotBlank() }
     }
 
     /** 셀 주소(예: "C5") → 0-based row/col 변환 후 숫자 읽기 */

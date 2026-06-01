@@ -45,6 +45,7 @@ data class FinanceLineSummary(
     val major: String,
     val minor: String,
     val amount: Long,
+    val detail: String? = null,
 )
 
 data class FinanceUnexecutedSummary(
@@ -130,8 +131,8 @@ class FinanceReportService(
         val lines = allLines.mapNotNull { line ->
             val dir = if (line.isIncome) "INCOME" else "EXPENSE"
             val cat = catMap[Triple(dir, line.major, line.minor)] ?: return@mapNotNull null
-            lineRepo.save(FinanceReportLine(reportId = report.id, categoryId = cat.id, amount = line.amount))
-            FinanceLineSummary(cat.id, cat.direction, cat.major, cat.minor, line.amount)
+            lineRepo.save(FinanceReportLine(reportId = report.id, categoryId = cat.id, amount = line.amount, detail = line.detail))
+            FinanceLineSummary(cat.id, cat.direction, cat.major, cat.minor, line.amount, line.detail)
         }
 
         // 미집행 품목 저장
@@ -177,7 +178,7 @@ class FinanceReportService(
         val categories = categoryRepo.findAll().associateBy { it.id }
         val lines = lineRepo.findAllByReportId(id).mapNotNull { line ->
             val cat = categories[line.categoryId] ?: return@mapNotNull null
-            FinanceLineSummary(cat.id, cat.direction, cat.major, cat.minor, line.amount)
+            FinanceLineSummary(cat.id, cat.direction, cat.major, cat.minor, line.amount, line.detail)
         }
         val unexecuted = unexecutedRepo.findAllByReportIdOrderBySortOrder(id).map {
             FinanceUnexecutedSummary(it.id, it.content, it.amount, it.executedDate, it.note, it.sortOrder)

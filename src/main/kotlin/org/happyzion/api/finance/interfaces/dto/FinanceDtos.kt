@@ -14,6 +14,7 @@ data class FinanceParsedLineDto(
     val major: String,
     val minor: String,
     val amount: Long,
+    val detail: String? = null,
 )
 
 data class FinanceParsedUnexecutedItemDto(
@@ -79,6 +80,7 @@ data class FinanceLineResponse(
     val major: String,
     val minor: String,
     val amount: Long,
+    val detail: String? = null,
 )
 
 data class FinanceUnexecutedItemResponse(
@@ -144,7 +146,7 @@ fun FinanceParseResult.toPreviewResponse(isDuplicate: Boolean) = FinancePreviewR
     periodSourceText = periodSourceText,
     isDuplicate = isDuplicate,
     lines = (incomeLines.map { FinanceParsedLineDto("INCOME", it.major, it.minor, it.amount) } +
-            expenseLines.map { FinanceParsedLineDto("EXPENSE", it.major, it.minor, it.amount) }),
+            expenseLines.map { FinanceParsedLineDto("EXPENSE", it.major, it.minor, it.amount, it.detail) }),
     unexecutedItems = unexecutedItems.map { FinanceParsedUnexecutedItemDto(it.content, it.amount, it.executedDate, it.note) },
     totals = FinanceParsedTotalsDto(incomeTotal, expenseTotal, balance, formIncomeTotal, formExpenseTotal, checksumMismatch),
 )
@@ -163,7 +165,7 @@ fun FinanceReportDetail.toDetailResponse() = FinanceReportDetailResponse(
     sourceFilename = sourceFilename, uploadedAt = createdAt, checksumMismatch = checksumMismatch,
     formIncomeTotal = formIncomeTotal,
     formExpenseTotal = formExpenseTotal,
-    lines = lines.map { FinanceLineResponse(it.categoryId, it.direction.name, it.major, it.minor, it.amount) },
+    lines = lines.map { FinanceLineResponse(it.categoryId, it.direction.name, it.major, it.minor, it.amount, it.detail) },
     unexecutedItems = unexecutedItems.map { FinanceUnexecutedItemResponse(it.id, it.content, it.amount, it.executedDate, it.note, it.sortOrder) },
 )
 
