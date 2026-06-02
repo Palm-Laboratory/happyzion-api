@@ -123,9 +123,16 @@ data class StatBucketResponse(
     val incomeByMajor: List<MajorBreakdownResponse>,
     val expenseByMajor: List<MajorBreakdownResponse>,
     val previousSummary: StatSummaryResponse?,
+    val yoySummary: StatSummaryResponse?,
 )
 
-data class StatSummaryResponse(val incomeTotal: Long, val expenseTotal: Long, val balance: Long)
+data class StatSummaryResponse(
+    val incomeTotal: Long,
+    val expenseTotal: Long,
+    val balance: Long,
+    val incomeByMajor: List<MajorBreakdownResponse> = emptyList(),
+    val expenseByMajor: List<MajorBreakdownResponse> = emptyList(),
+)
 
 data class FinanceStatResponse(
     val granularity: String,
@@ -138,6 +145,8 @@ data class FinanceStatResponse(
     val incomeByMajor: List<MajorBreakdownResponse>,
     val expenseByMajor: List<MajorBreakdownResponse>,
     val cumulativeStartBalance: Long,
+    val yoySummary: StatSummaryResponse?,
+    val yoyCumulativeStartBalance: Long,
 )
 
 // ── 변환 함수 ─────────────────────────────────────────────────────────────────
@@ -178,10 +187,21 @@ fun FinanceStatResult.toResponse() = FinanceStatResponse(
         StatBucketResponse(it.label, it.hasData, it.incomeTotal, it.expenseTotal, it.balance,
             it.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
             it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
-            it.previousSummary?.let { p -> StatSummaryResponse(p.incomeTotal, p.expenseTotal, p.balance) })
+            it.previousSummary?.let { p -> StatSummaryResponse(p.incomeTotal, p.expenseTotal, p.balance,
+                p.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
+                p.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) }) },
+            it.yoySummary?.let { p -> StatSummaryResponse(p.incomeTotal, p.expenseTotal, p.balance,
+                p.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
+                p.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) }) })
     },
     summary = StatSummaryResponse(summary.incomeTotal, summary.expenseTotal, summary.balance),
-    previousSummary = previousSummary?.let { StatSummaryResponse(it.incomeTotal, it.expenseTotal, it.balance) },
+    previousSummary = previousSummary?.let { StatSummaryResponse(it.incomeTotal, it.expenseTotal, it.balance,
+        it.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
+        it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) }) },
+    yoySummary = yoySummary?.let { StatSummaryResponse(it.incomeTotal, it.expenseTotal, it.balance,
+        it.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
+        it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) }) },
+    yoyCumulativeStartBalance = yoyCumulativeStartBalance,
     previousLabel = previousLabel,
     incomeByMajor = incomeByMajor.map { MajorBreakdownResponse(it.major, it.amount) },
     expenseByMajor = expenseByMajor.map { MajorBreakdownResponse(it.major, it.amount) },
