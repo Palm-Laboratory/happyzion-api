@@ -116,6 +116,7 @@ data class MajorBreakdownResponse(val major: String, val amount: Long)
 
 data class StatBucketResponse(
     val label: String,
+    val hasData: Boolean,
     val incomeTotal: Long,
     val expenseTotal: Long,
     val balance: Long,
@@ -136,6 +137,7 @@ data class FinanceStatResponse(
     val previousLabel: String?,
     val incomeByMajor: List<MajorBreakdownResponse>,
     val expenseByMajor: List<MajorBreakdownResponse>,
+    val cumulativeStartBalance: Long,
 )
 
 // ── 변환 함수 ─────────────────────────────────────────────────────────────────
@@ -173,7 +175,7 @@ fun FinanceStatResult.toResponse() = FinanceStatResponse(
     granularity = granularity.name,
     year = year, month = month,
     buckets = buckets.map {
-        StatBucketResponse(it.label, it.incomeTotal, it.expenseTotal, it.balance,
+        StatBucketResponse(it.label, it.hasData, it.incomeTotal, it.expenseTotal, it.balance,
             it.incomeByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
             it.expenseByMajor.map { b -> MajorBreakdownResponse(b.major, b.amount) },
             it.previousSummary?.let { p -> StatSummaryResponse(p.incomeTotal, p.expenseTotal, p.balance) })
@@ -183,4 +185,5 @@ fun FinanceStatResult.toResponse() = FinanceStatResponse(
     previousLabel = previousLabel,
     incomeByMajor = incomeByMajor.map { MajorBreakdownResponse(it.major, it.amount) },
     expenseByMajor = expenseByMajor.map { MajorBreakdownResponse(it.major, it.amount) },
+    cumulativeStartBalance = cumulativeStartBalance,
 )

@@ -65,6 +65,14 @@ class FinanceAdminController(
         return ResponseEntity.noContent().build()
     }
 
+    /** 누적 잔액 */
+    @GetMapping("/balance")
+    fun balance(): Map<String, Long> {
+        val income = reportService.totalIncomeSum()
+        val expense = reportService.totalExpenseSum()
+        return mapOf("incomeTotal" to income, "expenseTotal" to expense, "balance" to income - expense)
+    }
+
     /** 통계 */
     @GetMapping("/statistics")
     fun statistics(

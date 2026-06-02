@@ -25,4 +25,10 @@ interface FinanceReportRepository : JpaRepository<FinanceReport, Long> {
 
     @Query("select distinct r.year from FinanceReport r order by r.year")
     fun findDistinctYears(): List<Int>
+
+    @Query("select coalesce(sum(r.incomeTotal), 0) from FinanceReport r")
+    fun sumIncomeTotal(): Long
+
+    @Query("select coalesce(sum(r.expenseTotal), 0) from FinanceReport r")
+    fun sumExpenseTotal(): Long
 }

@@ -206,6 +206,9 @@ class FinanceReportService(
         reportRepo.deleteById(id)
     }
 
+    fun totalIncomeSum(): Long = reportRepo.sumIncomeTotal()
+    fun totalExpenseSum(): Long = reportRepo.sumExpenseTotal()
+
     private fun FinanceReport.toSummary() = FinanceReportSummary(
         id, year, month, week, incomeTotal, expenseTotal, balance, sourceFilename, uploadedBy, checksumMismatch, createdAt,
     )

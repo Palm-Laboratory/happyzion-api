@@ -13,6 +13,7 @@ enum class StatGranularity { WEEK, MONTH, QUARTER, YEAR }
 
 data class StatBucket(
     val label: String,
+    val hasData: Boolean,
     val incomeTotal: Long,
     val expenseTotal: Long,
     val balance: Long,
@@ -35,6 +36,7 @@ data class FinanceStatResult(
     val previousLabel: String?,
     val incomeByMajor: List<MajorBreakdown>,
     val expenseByMajor: List<MajorBreakdown>,
+    val cumulativeStartBalance: Long = 0,
 )
 
 @Service
@@ -69,7 +71,7 @@ class FinanceStatisticsService(
                     val prevR = if (w == 1) prevLastWeekReport else reports.find { it.week == w - 1 }
                     val prevSummary = prevR?.let { StatSummary(it.incomeTotal, it.expenseTotal, it.balance) }
                     if (r == null) {
-                        StatBucket("${w}주", 0, 0, 0, emptyList(), emptyList(), prevSummary)
+                        StatBucket("${w}주", false, 0, 0, 0, emptyList(), emptyList(), prevSummary)
                     } else {
                         val rLines = linesByReport[r.id] ?: emptyList()
                         buildBucket("${w}주", r.incomeTotal, r.expenseTotal, r.balance, rLines, categories, prevSummary)
@@ -80,10 +82,14 @@ class FinanceStatisticsService(
                 val previousSummary = if (prevReports.isEmpty()) null else StatSummary(prevReports.sumOf { it.incomeTotal }, prevReports.sumOf { it.expenseTotal }, prevReports.sumOf { it.balance })
 
                 val allLines = if (reportIds.isEmpty()) emptyList() else lineRepo.findAllByReportIdIn(reportIds)
+                val weekCumulativeStart = reportRepo.findAll()
+                    .filter { it.year < y || (it.year == y && it.month < m) }
+                    .sumOf { it.balance }
                 FinanceStatResult(granularity, y, m, buckets, summary, previousSummary,
                     if (prevReports.isEmpty()) null else "${prevY}년 ${prevM}월",
                     majorBreakdown(allLines, categories, FinanceDirection.INCOME),
                     majorBreakdown(allLines, categories, FinanceDirection.EXPENSE),
+                    cumulativeStartBalance = weekCumulativeStart,
                 )
             }
 
@@ -101,16 +107,18 @@ class FinanceStatisticsService(
                     val prevSummary = if (prevMReports.isEmpty()) null else StatSummary(prevMReports.sumOf { it.incomeTotal }, prevMReports.sumOf { it.expenseTotal }, prevMReports.sumOf { it.balance })
                     buildBucket("${m}월",
                         mReports.sumOf { it.incomeTotal }, mReports.sumOf { it.expenseTotal }, mReports.sumOf { it.balance },
-                        mLines, categories, prevSummary)
+                        mLines, categories, prevSummary, hasData = mReports.isNotEmpty())
                 }
 
                 val summary = StatSummary(reports.sumOf { it.incomeTotal }, reports.sumOf { it.expenseTotal }, reports.sumOf { it.balance })
                 val previousSummary = if (prevReports.isEmpty()) null else StatSummary(prevReports.sumOf { it.incomeTotal }, prevReports.sumOf { it.expenseTotal }, prevReports.sumOf { it.balance })
+                val monthCumulativeStart = reportRepo.findAll().filter { it.year < y }.sumOf { it.balance }
 
                 FinanceStatResult(granularity, y, null, buckets, summary, previousSummary,
                     if (prevReports.isEmpty()) null else "${y - 1}년",
                     majorBreakdown(lines, categories, FinanceDirection.INCOME),
                     majorBreakdown(lines, categories, FinanceDirection.EXPENSE),
+                    cumulativeStartBalance = monthCumulativeStart,
                 )
             }
 
@@ -135,16 +143,18 @@ class FinanceStatisticsService(
                     val prevSummary = if (prevQReports.isEmpty()) null else StatSummary(prevQReports.sumOf { it.incomeTotal }, prevQReports.sumOf { it.expenseTotal }, prevQReports.sumOf { it.balance })
                     buildBucket("${q}분기",
                         qReports.sumOf { it.incomeTotal }, qReports.sumOf { it.expenseTotal }, qReports.sumOf { it.balance },
-                        qLines, categories, prevSummary)
+                        qLines, categories, prevSummary, hasData = qReports.isNotEmpty())
                 }
 
                 val summary = StatSummary(reports.sumOf { it.incomeTotal }, reports.sumOf { it.expenseTotal }, reports.sumOf { it.balance })
                 val previousSummary = if (prevReports.isEmpty()) null else StatSummary(prevReports.sumOf { it.incomeTotal }, prevReports.sumOf { it.expenseTotal }, prevReports.sumOf { it.balance })
+                val quarterCumulativeStart = reportRepo.findAll().filter { it.year < y }.sumOf { it.balance }
 
                 FinanceStatResult(granularity, y, null, buckets, summary, previousSummary,
                     if (prevReports.isEmpty()) null else "${y - 1}년",
                     majorBreakdown(lines, categories, FinanceDirection.INCOME),
                     majorBreakdown(lines, categories, FinanceDirection.EXPENSE),
+                    cumulativeStartBalance = quarterCumulativeStart,
                 )
             }
 
@@ -180,8 +190,10 @@ class FinanceStatisticsService(
         lines: List<org.happyzion.api.finance.domain.FinanceReportLine>,
         categories: Map<Long, org.happyzion.api.finance.domain.FinanceCategory>,
         previousSummary: StatSummary? = null,
+        hasData: Boolean = true,
     ) = StatBucket(
         label = label,
+        hasData = hasData,
         incomeTotal = incomeTotal, expenseTotal = expenseTotal, balance = balance,
         incomeByMajor = majorBreakdown(lines, categories, FinanceDirection.INCOME),
         expenseByMajor = majorBreakdown(lines, categories, FinanceDirection.EXPENSE),
