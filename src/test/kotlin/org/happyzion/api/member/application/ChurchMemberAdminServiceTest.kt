@@ -302,6 +302,26 @@ class ChurchMemberAdminServiceTest {
     }
 
     @Test
+    fun `listMembers with explicit status uses selected statuses`() {
+        stubEmptySearch()
+
+        val filter = ChurchMemberSearchFilter(
+            name = null, phone = null,
+            statuses = setOf(ChurchMemberStatus.RESTING),
+            faithStage = null, cellLabel = null, includeInactive = false,
+        )
+        service.listMembers(filter, actorId = 7L, page = 0, size = 10)
+
+        val statusCaptor = argumentCaptor<Set<ChurchMemberStatus>>()
+        verify(memberRepo).search(
+            nameHash = isNull(), phoneHash = isNull(), phoneLast4Hash = isNull(),
+            faithStage = isNull(), cellLabel = isNull(),
+            statuses = statusCaptor.capture(), pageable = any(),
+        )
+        assertThat(statusCaptor.firstValue).containsExactly(ChurchMemberStatus.RESTING)
+    }
+
+    @Test
     fun `listMembers with ambiguous phone length returns empty result without calling repo`() {
         val filter = ChurchMemberSearchFilter(
             name = null, phone = "12345",   // 5 digits — ambiguous, not 4 and not >= 9

@@ -121,7 +121,9 @@ class ChurchMemberAdminService(
         filter: ChurchMemberSearchFilter, actorId: Long, page: Int, size: Int,
     ): ChurchMemberPage {
         adminAccountGuard.verify(actorId)
-        val statuses = if (filter.includeInactive) ChurchMemberStatus.values().toSet() else ChurchMemberStatus.ACTIVE_SET
+        val statuses = filter.statuses.ifEmpty {
+            if (filter.includeInactive) ChurchMemberStatus.values().toSet() else ChurchMemberStatus.ACTIVE_SET
+        }
 
         val nameQuery = filter.name?.let(normalizer::forNameQuery)
         val phoneQuery = filter.phone?.let { normalizer.forPhoneQuery(it) }
