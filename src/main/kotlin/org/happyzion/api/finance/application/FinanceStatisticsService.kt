@@ -6,8 +6,6 @@ import org.happyzion.api.finance.infrastructure.persistence.FinanceReportLineRep
 import org.happyzion.api.finance.infrastructure.persistence.FinanceReportRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.DayOfWeek
-import java.time.LocalDate
 
 enum class StatGranularity { WEEK, MONTH, QUARTER, YEAR }
 
@@ -83,7 +81,12 @@ class FinanceStatisticsService(
                 val yoyLines = if (yoyReportIds.isEmpty()) emptyList() else lineRepo.findAllByReportIdIn(yoyReportIds)
                 val yoyLinesByReport = yoyLines.groupBy { it.reportId }
 
-                val maxWeek = sundayCountInMonth(y, m)
+                // 달력상 주일 수가 기본 상한이나, 그보다 큰 week가 저장돼 있으면(예: 4주 달의 5주)
+                // 그 보고서가 주별 분해에서 누락되어 월 합계와 어긋나므로 실제 최대 week까지 버킷을 만든다.
+                val maxWeek = maxOf(
+                    FinancePeriodUtil.sundayCountInMonth(y, m),
+                    reports.maxOfOrNull { it.week } ?: 0,
+                )
                 val buckets = (1..maxWeek).map { w ->
                     val r = reports.find { it.week == w }
                     val prevR = if (w == 1) prevLastWeekReport else reports.find { it.week == w - 1 }
@@ -308,13 +311,6 @@ class FinanceStatisticsService(
         .map { (major, amounts) -> MajorBreakdown(major, amounts.sum()) }
         .filter { it.amount > 0 }
         .sortedByDescending { it.amount }
-
-    private fun sundayCountInMonth(year: Int, month: Int): Int {
-        val firstDay = LocalDate.of(year, month, 1)
-        val lastDay = firstDay.lengthOfMonth()
-        val firstSunday = (1..7).first { LocalDate.of(year, month, it).dayOfWeek == DayOfWeek.SUNDAY }
-        return generateSequence(firstSunday) { it + 7 }.takeWhile { it <= lastDay }.count()
-    }
 
     private fun emptyResult(granularity: StatGranularity, year: Int?, month: Int?) =
         FinanceStatResult(granularity, year, month, emptyList(), StatSummary(0, 0, 0), null, null, emptyList(), emptyList())

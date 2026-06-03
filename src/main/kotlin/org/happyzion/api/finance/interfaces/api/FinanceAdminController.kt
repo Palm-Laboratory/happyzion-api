@@ -1,11 +1,20 @@
 package org.happyzion.api.finance.interfaces.api
 
+import org.happyzion.api.common.config.UploadProperties
+import org.happyzion.api.common.error.NotFoundException
 import org.happyzion.api.common.security.AdminAuthRequired
 import org.happyzion.api.finance.application.*
 import org.happyzion.api.finance.interfaces.dto.*
+import org.springframework.core.io.FileSystemResource
+import org.springframework.core.io.Resource
+import org.springframework.http.ContentDisposition
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 
 @AdminAuthRequired
 @RestController
@@ -13,7 +22,32 @@ import org.springframework.web.multipart.MultipartFile
 class FinanceAdminController(
     private val reportService: FinanceReportService,
     private val statisticsService: FinanceStatisticsService,
+    private val uploadProperties: UploadProperties,
 ) {
+    /**
+     * 재정보고서 엑셀 양식 다운로드.
+     * 관리자가 서버 `<uploads-root>/finance/template.xlsx` 에 양식 파일을 올려두면 그대로 내려준다.
+     */
+    @GetMapping("/template")
+    fun downloadTemplate(): ResponseEntity<Resource> {
+        val templatePath: Path = Path.of(uploadProperties.rootPath)
+            .resolve("finance")
+            .resolve("template.xlsx")
+            .normalize()
+        val file = templatePath.toFile()
+        if (!file.exists() || !file.isFile) {
+            throw NotFoundException("등록된 재정보고서 양식이 없습니다. 서버에 양식 파일을 먼저 올려주세요.")
+        }
+        val downloadName = "시온재정_양식.xlsx"
+        val contentDisposition = ContentDisposition.attachment()
+            .filename(downloadName, StandardCharsets.UTF_8)
+            .build()
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+            .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+            .body(FileSystemResource(file))
+    }
+
     /** 엑셀 업로드 → 파싱 미리보기 (DB 저장 없음) */
     @PostMapping("/reports/preview")
     fun preview(

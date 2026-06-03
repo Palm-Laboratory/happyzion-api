@@ -135,6 +135,22 @@ class FinanceExcelParser {
             ParsedLine(major, minor, amount, isIncome = false, detail = detail)
         }
 
+        // 3-1) 라인 무결성 검증 — 같은 (대분류, 소분류)가 중복되면 저장 시 unique 위반이 나므로
+        //      미리보기 단계에서 안내 메시지로 차단한다. (주로 찬조헌금 동적행 라벨 중복)
+        findDuplicateLabel(incomeLines)?.let { dup ->
+            wb.close()
+            throw IllegalArgumentException(
+                "수입 항목 '$dup' 이(가) 중복되었습니다. 찬조헌금 등 직접 입력 항목의 이름이 겹치지 않도록 " +
+                    "엑셀에서 항목명을 구분하거나 한 행으로 합친 뒤 다시 업로드해 주세요.",
+            )
+        }
+        findDuplicateLabel(expenseLines)?.let { dup ->
+            wb.close()
+            throw IllegalArgumentException(
+                "지출 항목 '$dup' 이(가) 중복되었습니다. 항목명이 겹치지 않도록 엑셀을 수정한 뒤 다시 업로드해 주세요.",
+            )
+        }
+
         // 4) 합계 직접 합산
         val incomeTotal = incomeLines.sumOf { it.amount }
         val expenseTotal = expenseLines.sumOf { it.amount }
@@ -178,6 +194,14 @@ class FinanceExcelParser {
             checksumMismatch = checksumMismatch,
         )
     }
+
+    /** 같은 (대분류, 소분류) 라인이 2건 이상이면 첫 중복 라벨("대분류 - 소분류")을 반환, 없으면 null. */
+    private fun findDuplicateLabel(lines: List<ParsedLine>): String? =
+        lines.groupBy { it.major to it.minor }
+            .entries
+            .firstOrNull { it.value.size > 1 }
+            ?.key
+            ?.let { "${it.first} - ${it.second}" }
 
     private fun stringValue(ws: org.apache.poi.ss.usermodel.Sheet, addr: String): String? {
         val col = addr[0] - 'A'

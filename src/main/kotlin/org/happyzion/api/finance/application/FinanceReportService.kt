@@ -93,6 +93,14 @@ class FinanceReportService(
         year: Int, month: Int, week: Int,
         actorId: Long,
     ): FinanceReportDetail {
+        // 기간 검증 — 잘못된 week는 통계 주별 분해에서 누락되므로 입력 단계에서 차단
+        require(month in 1..12) { "월은 1~12 사이여야 합니다 (입력: ${month}월)" }
+        require(week >= 1) { "주는 1 이상이어야 합니다 (입력: ${week}주)" }
+        val maxWeekOfMonth = FinancePeriodUtil.sundayCountInMonth(year, month)
+        require(week <= maxWeekOfMonth) {
+            "${year}년 ${month}월은 ${maxWeekOfMonth}주까지입니다 (입력: ${week}주)"
+        }
+
         // 카테고리 맵 (direction+major+minor → id)
         val categories = categoryRepo.findAllByActiveOrderBySortOrder()
         val catMap = categories.associateBy { Triple(it.direction.name, it.major, it.minor) }.toMutableMap()
