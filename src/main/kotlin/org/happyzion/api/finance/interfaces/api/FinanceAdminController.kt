@@ -7,12 +7,12 @@ import org.happyzion.api.finance.application.*
 import org.happyzion.api.finance.interfaces.dto.*
 import org.springframework.core.io.FileSystemResource
 import org.springframework.core.io.Resource
-import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 
@@ -38,12 +38,13 @@ class FinanceAdminController(
         if (!file.exists() || !file.isFile) {
             throw NotFoundException("등록된 재정보고서 양식이 없습니다. 서버에 양식 파일을 먼저 올려주세요.")
         }
+        // 한글 파일명은 RFC 5987 `filename*` 로 내려야 브라우저가 올바르게 디코딩한다.
+        // (Spring ContentDisposition 은 RFC 2047 encoded-word 로 출력해 브라우저가 못 푸는 문제가 있어 직접 구성)
         val downloadName = "시온재정_양식.xlsx"
-        val contentDisposition = ContentDisposition.attachment()
-            .filename(downloadName, StandardCharsets.UTF_8)
-            .build()
+        val encodedName = URLEncoder.encode(downloadName, StandardCharsets.UTF_8).replace("+", "%20")
+        val contentDisposition = "attachment; filename=\"finance_template.xlsx\"; filename*=UTF-8''$encodedName"
         return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+            .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
             .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
             .body(FileSystemResource(file))
     }
