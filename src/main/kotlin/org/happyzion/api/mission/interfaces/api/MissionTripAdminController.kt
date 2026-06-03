@@ -29,8 +29,10 @@ class MissionTripAdminController(
         @RequestParam(required = false) year: Int?,
         @RequestParam(required = false) status: MissionTripStatus?,
         @RequestParam(required = false) country: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
     ): MissionTripListResponse =
-        MissionTripListResponse(missionTripService.listTrips(actorId, year, status, country).map { it.toResponse() })
+        missionTripService.listTrips(actorId, year, status, country, page, size).toResponse()
 
     @GetMapping("/{id}")
     fun get(
@@ -182,7 +184,13 @@ data class UpdateParticipantRequest(
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────
 
-data class MissionTripListResponse(val trips: List<MissionTripSummaryResponse>)
+data class MissionTripListResponse(
+    val trips: List<MissionTripSummaryResponse>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+)
 
 data class MissionTripSummaryResponse(
     val id: Long,
@@ -246,6 +254,14 @@ private fun MissionTripSummary.toResponse() = MissionTripSummaryResponse(
     startDate = startDate, endDate = endDate,
     type = type, status = status, leaderLabel = leaderLabel,
     participantCount = participantCount,
+)
+
+private fun MissionTripPage.toResponse() = MissionTripListResponse(
+    trips = trips.map { it.toResponse() },
+    page = page,
+    size = size,
+    totalElements = totalElements,
+    totalPages = totalPages,
 )
 
 private fun MissionTripDetail.toDetailResponse() = MissionTripDetailResponse(

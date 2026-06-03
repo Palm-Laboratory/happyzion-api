@@ -20,6 +20,14 @@ data class EducationCourseSummary(
     val enrollmentCount: Int,
 )
 
+data class EducationCoursePage(
+    val courses: List<EducationCourseSummary>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+)
+
 data class EducationCourseDetail(
     val id: Long,
     val title: String,

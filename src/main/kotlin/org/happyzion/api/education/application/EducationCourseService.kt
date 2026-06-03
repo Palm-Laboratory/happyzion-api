@@ -26,13 +26,31 @@ class EducationCourseService(
 ) {
 
     @Transactional(readOnly = true)
-    fun listCourses(actorId: Long, year: Int?, status: EducationCourseStatus?, category: EducationCategory?): List<EducationCourseSummary> {
+    fun listCourses(
+        actorId: Long,
+        year: Int?,
+        status: EducationCourseStatus?,
+        category: EducationCategory?,
+        page: Int,
+        size: Int,
+    ): EducationCoursePage {
         requireActiveAdmin(actorId)
         val courses = courseRepository.search(year, status, category)
-        val courseIds = courses.mapNotNull { it.id }
+        val safePage = page.coerceAtLeast(0)
+        val safeSize = size.coerceIn(1, 100)
+        val totalElements = courses.size.toLong()
+        val totalPages = if (courses.isEmpty()) 0 else ((courses.size + safeSize - 1) / safeSize)
+        val pagedCourses = courses.drop(safePage * safeSize).take(safeSize)
+        val courseIds = pagedCourses.mapNotNull { it.id }
         val countByCourse: Map<Long, Int> = if (courseIds.isEmpty()) emptyMap()
         else enrollmentRepository.countByCourseIds(courseIds)
-        return courses.map { it.toSummary(countByCourse[it.id!!] ?: 0) }
+        return EducationCoursePage(
+            courses = pagedCourses.map { it.toSummary(countByCourse[it.id!!] ?: 0) },
+            page = safePage,
+            size = safeSize,
+            totalElements = totalElements,
+            totalPages = totalPages,
+        )
     }
 
     @Transactional(readOnly = true)

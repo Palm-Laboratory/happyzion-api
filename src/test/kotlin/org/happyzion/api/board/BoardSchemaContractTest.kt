@@ -31,6 +31,10 @@ class BoardSchemaContractTest {
             "V10__create_sms_log.sql",
             "V11__create_mission_trip.sql",
             "V12__relax_mission_trip_type_constraint.sql",
+            "V13__create_education_course.sql",
+            "V14__create_finance.sql",
+            "V15__add_finance_report_form_totals.sql",
+            "V16__add_finance_report_line_detail.sql",
         )
     }
 

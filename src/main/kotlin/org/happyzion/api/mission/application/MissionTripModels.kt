@@ -21,6 +21,14 @@ data class MissionTripSummary(
     val participantCount: Int,
 )
 
+data class MissionTripPage(
+    val trips: List<MissionTripSummary>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+)
+
 data class MissionTripDetail(
     val id: Long,
     val title: String,

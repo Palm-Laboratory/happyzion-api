@@ -27,13 +27,31 @@ class MissionTripService(
     // ── Trip CRUD ─────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
-    fun listTrips(actorId: Long, year: Int?, status: MissionTripStatus?, country: String?): List<MissionTripSummary> {
+    fun listTrips(
+        actorId: Long,
+        year: Int?,
+        status: MissionTripStatus?,
+        country: String?,
+        page: Int,
+        size: Int,
+    ): MissionTripPage {
         requireActiveAdmin(actorId)
         val trips = tripRepository.search(year, status, country)
-        val tripIds = trips.mapNotNull { it.id }
+        val safePage = page.coerceAtLeast(0)
+        val safeSize = size.coerceIn(1, 100)
+        val totalElements = trips.size.toLong()
+        val totalPages = if (trips.isEmpty()) 0 else ((trips.size + safeSize - 1) / safeSize)
+        val pagedTrips = trips.drop(safePage * safeSize).take(safeSize)
+        val tripIds = pagedTrips.mapNotNull { it.id }
         val countByTrip: Map<Long, Int> = if (tripIds.isEmpty()) emptyMap()
         else participantRepository.countByTripIds(tripIds)
-        return trips.map { it.toSummary(countByTrip[it.id!!] ?: 0) }
+        return MissionTripPage(
+            trips = pagedTrips.map { it.toSummary(countByTrip[it.id!!] ?: 0) },
+            page = safePage,
+            size = safeSize,
+            totalElements = totalElements,
+            totalPages = totalPages,
+        )
     }
 
     @Transactional(readOnly = true)
@@ -97,6 +115,11 @@ class MissionTripService(
         requireActiveAdmin(actorId)
         requireTrip(tripId)
 
+        val externalName = command.externalName?.trim()?.takeIf { it.isNotEmpty() }
+        if ((command.churchMemberId != null) == (externalName != null)) {
+            throw IllegalArgumentException("교인 또는 외부인 이름 중 하나만 지정해 주세요.")
+        }
+
         if (command.churchMemberId != null) {
             memberRepository.findByIdOrNull(command.churchMemberId)
                 ?: throw NotFoundException("교인을 찾을 수 없습니다. id=${command.churchMemberId}")
@@ -109,7 +132,7 @@ class MissionTripService(
             MissionTripParticipant(
                 missionTripId = tripId,
                 churchMemberId = command.churchMemberId,
-                externalName = command.externalName,
+                externalName = externalName,
                 role = command.role,
                 participationStatus = command.participationStatus,
                 note = command.note,

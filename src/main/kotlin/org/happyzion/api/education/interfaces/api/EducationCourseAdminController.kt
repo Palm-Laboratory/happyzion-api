@@ -26,8 +26,10 @@ class EducationCourseAdminController(
         @RequestParam(required = false) year: Int?,
         @RequestParam(required = false) status: EducationCourseStatus?,
         @RequestParam(required = false) category: EducationCategory?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int,
     ): EducationCourseListResponse =
-        EducationCourseListResponse(educationCourseService.listCourses(actorId, year, status, category).map { it.toResponse() })
+        educationCourseService.listCourses(actorId, year, status, category, page, size).toResponse()
 
     @GetMapping("/{id}")
     fun get(
@@ -162,7 +164,13 @@ data class UpdateEnrollmentRequest(
 
 // ── Response DTOs ─────────────────────────────────────────────────────────────
 
-data class EducationCourseListResponse(val courses: List<EducationCourseSummaryResponse>)
+data class EducationCourseListResponse(
+    val courses: List<EducationCourseSummaryResponse>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+)
 
 data class EducationCourseSummaryResponse(
     val id: Long,
@@ -223,6 +231,14 @@ private fun EducationCourseSummary.toResponse() = EducationCourseSummaryResponse
     id = id, title = title, category = category,
     startDate = startDate, endDate = endDate, status = status,
     instructorLabel = instructorLabel, enrollmentCount = enrollmentCount,
+)
+
+private fun EducationCoursePage.toResponse() = EducationCourseListResponse(
+    courses = courses.map { it.toResponse() },
+    page = page,
+    size = size,
+    totalElements = totalElements,
+    totalPages = totalPages,
 )
 
 private fun EducationCourseDetail.toDetailResponse() = EducationCourseDetailResponse(
