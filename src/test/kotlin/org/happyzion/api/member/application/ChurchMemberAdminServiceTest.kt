@@ -260,7 +260,7 @@ class ChurchMemberAdminServiceTest {
     }
 
     @Test
-    fun `listMembers default filters out REMOVED and DECEASED`() {
+    fun `listMembers default uses active status only`() {
         stubEmptySearch()
 
         val filter = ChurchMemberSearchFilter(
@@ -277,8 +277,7 @@ class ChurchMemberAdminServiceTest {
             statuses = statusCaptor.capture(), pageable = any(),
         )
         val usedStatuses = statusCaptor.firstValue
-        assertThat(usedStatuses).doesNotContain(ChurchMemberStatus.REMOVED)
-        assertThat(usedStatuses).doesNotContain(ChurchMemberStatus.DECEASED)
+        assertThat(usedStatuses).containsExactly(ChurchMemberStatus.ACTIVE)
     }
 
     @Test
